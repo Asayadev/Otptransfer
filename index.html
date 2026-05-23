@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Growthxpress Instant Money Transfer</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: '-apple-system', BlinkMacSystemFont, sans-serif; }
+        body { background-color: #f4f6f9; padding: 15px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .transfer-card { width: 100%; max-width: 420px; background: #ffffff; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border-top: 5px solid #1e88e5; }
+        .app-title { text-align: center; margin-bottom: 25px; }
+        .app-title h2 { color: #1e88e5; font-size: 22px; }
+        .app-title p { color: #757575; font-size: 11px; text-transform: uppercase; margin-top:3px; }
+        
+        .sender-profile-box { background: #e3f2fd; border: 1px solid #bbdefb; padding: 12px; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .sender-profile-box .name { font-weight: 700; color: #0d47a1; }
+        .sender-profile-box .bal { font-weight: 800; color: #2e7d32; }
+
+        .input-block { margin-bottom: 18px; }
+        .input-block label { display: block; font-size: 13px; font-weight: 600; color: #424242; margin-bottom: 8px; }
+        input[type="text"], input[type="number"], input[type="password"] { width: 100%; padding: 14px; border: 1px solid #cfd8dc; border-radius: 12px; font-size: 16px; background: #fafafa; outline: none; }
+        input:focus { border-color: #1e88e5; background: #fff; }
+        
+        .btn-action { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-verify { background-color: #ff9800; margin-top: 5px; }
+        .btn-send { background-color: #1e88e5; margin-top: 10px; }
+        .btn-send:disabled { background-color: #b0bec5; cursor: not-allowed; }
+
+        #receiverStatus { font-weight: bold; font-size: 14px; margin-top: 8px; display: block; text-align: center; padding: 8px; border-radius: 8px; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 999; justify-content: center; align-items: center; padding: 20px; }
+        .modal-card { background: white; padding: 30px; border-radius: 24px; text-align: center; width: 100%; max-width: 360px; }
+        .success-ring { width: 70px; height: 70px; background: #e8f5e9; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 15px; border: 3px solid #2e7d32; }
+        .success-ring svg { width: 40px; height: 40px; fill: none; stroke: #2e7d32; stroke-width: 4; }
+        .modal-card h4 { font-size: 20px; color: #2e7d32; margin-bottom: 8px; }
+        .btn-ok { background-color: #2e7d32; }
+
+        .otp-input-field { width: 85%; padding: 12px; border: 2px solid #1e88e5; border-radius: 12px; font-size: 22px; font-weight: 800; text-align: center; letter-spacing: 6px; outline: none; margin: 15px 0; background: #f9f9f9; }
+        .btn-otp-confirm { background-color: #1565c0; margin-bottom: 8px; }
+        .btn-otp-cancel { background-color: #e0e0e0; color: #424242; }
+    </style>
+</head>
+<body>
+
+<div id="otpModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="success-ring" style="background:#e3f2fd; border-color:#1565c0;">
+            <svg viewBox="0 0 24 24" style="stroke:#1565c0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        </div>
+        <h4 style="color:#1565c0;">Enter SMS Verification OTP</h4>
+        <p style="font-size:13px; color:#616161; margin-top:5px;">Aapke number par bheja gaya secure OTP code yahan enter karein.</p>
+        <input type="number" id="enteredOtp" class="otp-input-field" placeholder="000000" oninput="if(this.value.length > 6) this.value = this.value.slice(0,6);">
+        <button class="btn-action btn-otp-confirm" onclick="confirmOtpAndPay()">Verify & Complete Transfer</button>
+        <button class="btn-action btn-otp-cancel" onclick="closeOtpModal()">Cancel</button>
+    </div>
+</div>
+
+<div id="successModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="success-ring"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+        <h4>Transfer Success!</h4>
+        <p id="successMessage" style="font-size:14px; color:#555; margin-bottom:20px;"></p>
+        <button class="btn-action btn-ok" onclick="closeModal()">Return / Ok</button>
+    </div>
+</div>
+
+<div class="transfer-card">
+    <div class="app-title">
+        <h2>Growthxpress Pay</h2>
+        <p>Verified Secure Money Transfer</p>
+    </div>
+
+    <div id="senderProfileCard" class="sender-profile-box" style="display: none;">
+        <div>User: <span id="lblSenderName" class="name">---</span></div>
+        <div>Balance: <span id="lblSenderBalance" class="bal">₹0.00</span></div>
+    </div>
+
+    <div class="input-block">
+        <label>Your Paytm / Mobile Number:</label>
+        <input type="text" id="senderMobile" placeholder="Enter your mobile number" maxlength="10">
+    </div>
+
+    <div class="input-block">
+        <label>Receiver's Paytm / Mobile Number:</label>
+        <input type="text" id="receiverMobile" placeholder="Enter friend's mobile number" maxlength="10">
+        <button class="btn-action btn-verify" onclick="verifyAccounts()">Verify Destination Account</button>
+        <div id="receiverStatus"></div>
+    </div>
+
+    <div class="input-block">
+        <label>Amount to Send (₹):</label>
+        <input type="number" id="transferAmount" placeholder="Enter Amount" min="1">
+    </div>
+
+    <div class="input-block">
+        <label>Enter 6-Digit Security PIN:</label>
+        <input type="password" id="userSecurePin" placeholder="••••••" maxlength="6">
+    </div>
+
+    <button class="btn-action btn-send" id="sendBtn" disabled onclick="triggerOtpProcess()">Confirm & Send Now</button>
+</div>
+
+<script>
+    // Firebase Config Init
+    const firebaseConfig = { databaseURL: "https://har-gar-kishan-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // Fast2SMS API Authorization Token Key
+    const FAST2SMS_API_KEY = "PA3zj0wyaoTN1fvOhHXFIQecK5GDbiJZgnmCLESsu6BVRkU8d4f30RkEni6TMLuwG5erXCHB8YFzV9jD"; 
+
+    let senderUID = null, senderName = "", senderEmail = "", senderCurrentBalance = 0, senderDatabasePin = "";
+    let receiverUID = null, receiverName = "", receiverEmail = "", receiverCurrentBalance = 0;
+    let systemGeneratedOtp = null; 
+
+    // Account verification handler
+    function verifyAccounts() {
+        const sMobile = document.getElementById("senderMobile").value.trim();
+        const rMobile = document.getElementById("receiverMobile").value.trim();
+        const statusDiv = document.getElementById("receiverStatus");
+        const profileCard = document.getElementById("senderProfileCard");
+
+        if (sMobile === "" || rMobile === "") { alert("Dono number fill karein!"); return; }
+        if (sMobile === rMobile) { alert("Self-transfer block error!"); return; }
+
+        statusDiv.style.background = "#fff3e0"; statusDiv.style.color = "#000"; statusDiv.innerText = "Verifying Accounts...";
+        profileCard.style.display = "none"; 
+
+        database.ref("All_Users").once('value').then((snapshot) => {
+            let sFound = false, rFound = false;
+
+            snapshot.forEach((childSnapshot) => {
+                const userData = childSnapshot.val();
+                
+                if (userData && userData["paytm number"]) {
+                    const dbMobile = userData["paytm number"].toString().trim();
+                    
+                    if (dbMobile === sMobile) {
+                        senderUID = childSnapshot.key; 
+                        senderName = userData.name;
+                        senderEmail = userData.email || "noemail@gmail.com";
+                        senderCurrentBalance = parseFloat(userData.balance || 0);
+                        senderDatabasePin = userData.transferPin || ""; 
+                        sFound = true;
+                    }
+                    if (dbMobile === rMobile) {
+                        receiverUID = childSnapshot.key; 
+                        receiverName = userData.name;
+                        receiverEmail = userData.email || "noemail@gmail.com";
+                        receiverCurrentBalance = parseFloat(userData.balance || 0);
+                        rFound = true;
+                    }
+                }
+            });
+
+            if (!sFound) { 
+                statusDiv.style.background = "#ffebee"; statusDiv.style.color = "#d32f2f"; statusDiv.innerText = "❌ Sender Not Registered"; 
+            } 
+            else if (!rFound) { 
+                statusDiv.style.background = "#ffebee"; statusDiv.style.color = "#d32f2f"; statusDiv.innerText = "❌ Receiver Not Found"; 
+            } 
+            else {
+                document.getElementById("lblSenderName").innerText = senderName;
+                document.getElementById("lblSenderBalance").innerText = "₹" + senderCurrentBalance.toFixed(2);
+                profileCard.style.display = "flex"; 
+
+                statusDiv.style.background = "#e8f5e9"; statusDiv.style.color = "#2e7d32";
+                statusDiv.innerText = "✔ Ready to Pay: " + receiverName;
+                document.getElementById("sendBtn").disabled = false;
+            }
+        }).catch((err) => {
+            alert("Database Error: " + err.message);
+        });
+    }
+
+    function saveGlobalLog(typeText, amount, dateStr, userEmail) {
+        const ref = database.ref("history").push();
+        ref.set({ coin: String(amount), date: dateStr, email: userEmail, status: "Success", transKey: ref.key, type: typeText });
+    }
+
+    // Live Web Optimized HTTP Request Trigger
+    function triggerOtpProcess() {
+        const sMobile = document.getElementById("senderMobile").value.trim();
+        const amt = parseFloat(document.getElementById("transferAmount").value);
+        const enteredPin = document.getElementById("userSecurePin").value.trim();
+
+        if (isNaN(amt) || amt <= 0) { alert("Valid amount enter karein!"); return; }
+        if (amt > senderCurrentBalance) { alert("Insufficient wallet balance!"); return; }
+        
+        if (senderDatabasePin === "") {
+            alert("Security Error: Is account ka PIN active nahi hai. Admin se setup karwayein!");
+            return;
+        }
+        if (enteredPin !== senderDatabasePin.toString().trim()) {
+            alert("❌ Security PIN Invalid! Transaction blocked.");
+            return;
+        }
+
+        // Generate 6 Digit OTP Token Code
+        systemGeneratedOtp = Math.floor(100000 + Math.random() * 900000);
+
+        document.getElementById("sendBtn").disabled = true;
+        document.getElementById("sendBtn").innerText = "Sending Real SMS OTP...";
+
+        const smsMessage = `Growthxpress Wallet Security Code: ${systemGeneratedOtp}. Safe wallet money transfer validation code.`;
+
+        // GitHub Pages Web API Hit Endpoint
+        const targetUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${FAST2SMS_API_KEY}&route=q&message=${encodeURIComponent(smsMessage)}&flash=0&numbers=${sMobile}`;
+
+        // Standard direct request optimization for dynamic servers
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", targetUrl, true);
+        xhr.onreadystatechange = function () {
+            // Jab code execute ho, direct modal popup trigger ho bina delay ke
+            document.getElementById("sendBtn").disabled = false;
+            document.getElementById("sendBtn").innerText = "Confirm & Send Now";
+            document.getElementById("otpModal").style.display = "flex";
+        };
+        xhr.send();
+    }
+
+    function confirmOtpAndPay() {
+        const userOtpInput = document.getElementById("enteredOtp").value.trim();
+        if (userOtpInput === String(systemGeneratedOtp)) {
+            document.getElementById("otpModal").style.display = "none";
+            executeTransfer(); //
+        } else {
+            alert("❌ Galat Verification OTP daala hai! Sahi code enter karein.");
+        }
+    }
+
+    function executeTransfer() {
+        const amt = parseFloat(document.getElementById("transferAmount").value); //
+
+        const now = new Date(); const pad = (num) => String(num).padStart(2, '0'); //
+        const formattedDate = `${pad(now.getDate())}-${pad(now.getMonth()+1)}-${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`; //
+        
+        let sBal = senderCurrentBalance - amt; let rBal = receiverCurrentBalance + amt; //
+
+        database.ref("All_Users/" + senderUID).child("balance").set(String(sBal)); //
+        database.ref("All_Users/" + senderUID).child("history").child("TXX_"+Date.now()).set({ type: "Transfer to " + receiverName, amount: amt, timestamp: formattedDate, status: "Sent" }); //
+        
+        database.ref("All_Users/" + receiverUID).child("balance").set(String(rBal)); //
+        database.ref("All_Users/" + receiverUID).child("history").child("TXX_"+(Date.now()+1)).set({ type: "Received from " + senderName, amount: amt, timestamp: formattedDate, status: "Success" }); //
+
+        saveGlobalLog("Transfer to " + receiverName, amt, formattedDate, senderEmail); //
+        saveGlobalLog("Received from " + senderName, amt, formattedDate, receiverEmail); //
+
+        document.getElementById("successMessage").innerText = `Successfully transferred ₹${amt} to ${receiverName}!`; //
+        document.getElementById("successModal").style.display = "flex"; //
+    }
+
+    function closeOtpModal() {
+        document.getElementById("otpModal").style.display = "none";
+        document.getElementById("enteredOtp").value = "";
+        systemGeneratedOtp = null;
+    }
+
+    function closeModal() {
+        document.getElementById("successModal").style.display = "none"; //
+        document.getElementById("senderProfileCard").style.display = "none";
+        document.getElementById("senderMobile").value = ""; //
+        document.getElementById("transferAmount").value = ""; //
+        document.getElementById("userSecurePin").value = ""; //
+        document.getElementById("receiverMobile").value = ""; //
+        document.getElementById("receiverStatus").innerText = ""; //
+        document.getElementById("sendBtn").disabled = true; //
+        closeOtpModal();
+    }
+</script>
+</body>
+</html>
