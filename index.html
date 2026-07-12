@@ -143,8 +143,8 @@
             <div class="flex items-center gap-2">
                 <button @click="activeTab = 'orders'" :class="activeTab == 'orders' ? 'bg-green-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition"><i class="fas fa-box"></i></button>
                 <button @click="activeTab = 'earnings'" :class="activeTab == 'earnings' ? 'bg-green-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition"><i class="fas fa-money-bill-wave"></i></button>
-                <button @click="activeTab = 'payout'; loadPayoutData()" :class="activeTab == 'payout' ? 'bg-yellow-500' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition" title="Payout"><i class="fas fa-file-invoice-dollar"></i></button>
-                <button @click="activeTab = 'summary'; loadPayoutData()" :class="activeTab == 'summary' ? 'bg-purple-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition" title="Earnings Summary"><i class="fas fa-chart-pie"></i></button>
+                <button @click="activeTab = 'payout'; setCurrentPayoutMonth()" :class="activeTab == 'payout' ? 'bg-yellow-500' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition" title="Payout"><i class="fas fa-file-invoice-dollar"></i></button>
+                <button @click="activeTab = 'summary'; setCurrentPayoutMonth()" :class="activeTab == 'summary' ? 'bg-purple-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition" title="Earnings Summary"><i class="fas fa-chart-pie"></i></button>
                 <button @click="handleRiderLogout" class="bg-red-600/30 hover:bg-red-600/50 text-red-300 text-[10px] font-black px-2.5 py-1.5 rounded-lg transition">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
@@ -1013,9 +1013,13 @@ new Vue({
         getStatusBadgeClass(s) { const c = { pending: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-blue-100 text-blue-700', shipped: 'bg-purple-100 text-purple-700', delivered: 'bg-green-100 text-green-700', cancelled: 'bg-red-100 text-red-700', rejected: 'bg-red-100 text-red-700' }; return c[s] || ''; },
         getBorderClass(s) { const c = { pending: 'border-t-yellow-400', confirmed: 'border-t-blue-400', shipped: 'border-t-purple-400', delivered: 'border-t-green-400', cancelled: 'border-t-red-400', rejected: 'border-t-red-400' }; return c[s] || ''; },
         
-        initRiderPanel() {
+        setCurrentPayoutMonth() {
             const now = new Date();
             this.selectedPayoutMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+            this.loadPayoutData();
+        },
+        initRiderPanel() {
+            this.setCurrentPayoutMonth();
             this.loadOrders();
             this.loadShopkeepers();
             this.loadPerDeliveryRate();
