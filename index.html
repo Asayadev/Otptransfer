@@ -415,28 +415,22 @@
                     </button>
                 </div>
 
-                <!-- Past Requests -->
-                <div v-if="withdrawRequests.length" class="divide-y">
-                    <div v-for="req in withdrawRequests" :key="req.id" class="px-4 py-2.5 flex justify-between items-center">
-                        <div>
-                            <p class="text-xs font-bold text-gray-800">₹{{ req.amount }}</p>
-                            <p class="text-[10px] text-gray-400">{{ formatDate(req.requestedAt) }}</p>
-                            <p class="text-[10px] text-gray-400">UPI: {{ req.upiId }}</p>
+                <!-- Recent Withdrawals: compact 3-column list with scroll -->
+                <div class="border-t">
+                    <p class="px-4 pt-2.5 pb-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wide">Recent Withdrawals</p>
+                    <div v-if="withdrawRequests.length" class="max-h-32 overflow-y-auto divide-y">
+                        <div v-for="req in withdrawRequests" :key="req.id" class="px-4 py-2 grid grid-cols-3 gap-2 items-center text-[11px]">
+                            <p class="font-bold text-gray-800">₹{{ req.amount }}</p>
+                            <p class="text-gray-400 text-center">{{ formatDate(req.requestedAt) }}</p>
+                            <span :class="{
+                                'bg-yellow-100 text-yellow-700': req.status === 'pending',
+                                'bg-green-100 text-green-700': req.status === 'approved',
+                                'bg-red-100 text-red-700': req.status === 'rejected'
+                            }" class="px-2 py-0.5 rounded-full text-[10px] font-bold capitalize justify-self-end">{{ req.status }}</span>
                         </div>
-                        <span :class="{
-                            'bg-yellow-100 text-yellow-700': req.status === 'pending',
-                            'bg-green-100 text-green-700': req.status === 'approved',
-                            'bg-red-100 text-red-700': req.status === 'rejected'
-                        }" class="px-2.5 py-1 rounded-full text-[10px] font-bold capitalize">
-                            <i :class="{
-                                'fas fa-clock': req.status === 'pending',
-                                'fas fa-check-circle': req.status === 'approved',
-                                'fas fa-times-circle': req.status === 'rejected'
-                            }" class="mr-1"></i>{{ req.status }}
-                        </span>
                     </div>
+                    <div v-else class="px-4 py-3 text-center text-[11px] text-gray-400">No withdrawal requests yet</div>
                 </div>
-                <div v-else class="px-4 py-3 text-center text-[11px] text-gray-400">No withdrawal requests yet</div>
             </div>
 
             <!-- Weekly Summary -->
@@ -840,40 +834,6 @@
                         </div>
                         <p class="font-black text-indigo-700">₹{{ totalEarnings.toFixed(0) }}</p>
                     </div>
-                </div>
-            </div>
-
-            <!-- Withdrawal History -->
-            <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
-                <div class="px-4 py-3 border-b bg-gray-50 flex justify-between items-center">
-                    <p class="text-xs font-black text-gray-700"><i class="fas fa-history mr-1.5 text-indigo-500"></i>Withdrawal History</p>
-                    <button @click="showWithdrawModal = true" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl font-bold text-[10px] flex items-center gap-1">
-                        <i class="fas fa-paper-plane text-[9px]"></i> Withdraw
-                    </button>
-                </div>
-                <div v-if="withdrawRequests.length" class="divide-y">
-                    <div v-for="req in withdrawRequests" :key="req.id" class="px-4 py-3 flex justify-between items-center">
-                        <div>
-                            <p class="text-sm font-black text-gray-800">₹{{ req.amount }}</p>
-                            <p class="text-[10px] text-gray-400 mt-0.5"><i class="fas fa-clock mr-1"></i>{{ formatDate(req.requestedAt) }}</p>
-                            <p class="text-[10px] text-gray-400">UPI: {{ req.upiId }}</p>
-                        </div>
-                        <span :class="{
-                            'bg-yellow-100 text-yellow-700': req.status === 'pending',
-                            'bg-green-100 text-green-700': req.status === 'approved',
-                            'bg-red-100 text-red-700': req.status === 'rejected'
-                        }" class="px-2.5 py-1 rounded-full text-[10px] font-bold capitalize flex items-center gap-1">
-                            <i :class="{
-                                'fas fa-clock': req.status === 'pending',
-                                'fas fa-check-circle': req.status === 'approved',
-                                'fas fa-times-circle': req.status === 'rejected'
-                            }"></i>{{ req.status }}
-                        </span>
-                    </div>
-                </div>
-                <div v-else class="py-6 text-center text-[11px] text-gray-400">
-                    <i class="fas fa-inbox text-2xl text-gray-200 mb-2 block"></i>
-                    Koi withdrawal request nahi abhi tak
                 </div>
             </div>
 
