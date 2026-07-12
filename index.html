@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Pinkkart - Delivery Boy Panel</title>
+    <title>Pinkkart - Delivery Boy Panel (Photo + Earnings + Call Fix)</title>
     <script src="tailwind.js"></script>
     <link href="inter.css" rel="stylesheet">
     <link rel="stylesheet" href="all.min.css">
@@ -29,7 +29,36 @@
         .filter-chip.active { background: #10b981; color: white; border-color: #10b981; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .progress-bar { transition: width 0.5s ease-in-out; }
+        .scan-animation { animation: scanPulse 1s ease-in-out; }
+        @keyframes scanPulse {
+            0% { transform: scale(1); background: rgba(16, 185, 129, 0.2); }
+            50% { transform: scale(1.02); background: rgba(16, 185, 129, 0.4); }
+            100% { transform: scale(1); background: rgba(16, 185, 129, 0.2); }
+        }
         .invoice-modal { max-height: 80vh; overflow-y: auto; }
+        .notification-bell { position: relative; cursor: pointer; }
+        .notification-badge {
+            position: absolute; top: -8px; right: -8px;
+            background: #ef4444; color: white; border-radius: 50%;
+            width: 18px; height: 18px; font-size: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold;
+        }
+        .notification-dropdown {
+            position: absolute; top: 45px; right: 0;
+            width: 320px; max-height: 400px; overflow-y: auto;
+            background: white; border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2);
+            z-index: 50;
+            border: 1px solid #e5e7eb;
+        }
+        .notification-item {
+            padding: 12px; border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s; cursor: pointer;
+        }
+        .notification-item:hover { background: #f3f4f6; }
+        .notification-item.unread { background: #eff6ff; }
         @media print {
             .no-print { display: none; }
             .invoice-print-area { display: block; margin: 0; padding: 0; }
@@ -37,12 +66,19 @@
             .invoice-print-area, .invoice-print-area * { visibility: visible; }
             .invoice-print-area { position: absolute; top: 0; left: 0; width: 100%; }
         }
+        .slide-down { animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         .login-bg { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); }
         .camera-preview { 
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: black; z-index: 1000;
             display: flex; flex-direction: column;
         }
+        .earning-card { transition: all 0.2s; cursor: pointer; }
+        .earning-card:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased">
@@ -88,6 +124,7 @@
                     <span>{{ authLoading ? 'Verifying...' : 'Login to Panel' }}</span>
                 </button>
             </div>
+            <p class="text-center text-[10px] text-gray-400">Contact admin to get your credentials</p>
         </div>
     </div>
 
@@ -104,15 +141,10 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <button @click="activeTab = 'orders'" :class="activeTab == 'orders' ? 'bg-green-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1">
-                    <i class="fas fa-box"></i> Orders
-                </button>
-                <button @click="activeTab = 'earnings'; loadWithdrawRequests()" :class="activeTab == 'earnings' ? 'bg-indigo-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1">
-                    <i class="fas fa-wallet"></i> Withdraw
-                </button>
-                <button @click="activeTab = 'payout'; loadPayoutData()" :class="activeTab == 'payout' ? 'bg-yellow-500 text-slate-900' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1">
-                    <i class="fas fa-file-invoice-dollar"></i> Monthly Payout
-                </button>
+                <button @click="activeTab = 'orders'" :class="activeTab == 'orders' ? 'bg-green-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition"><i class="fas fa-box"></i></button>
+                <button @click="activeTab = 'earnings'" :class="activeTab == 'earnings' ? 'bg-green-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition"><i class="fas fa-money-bill-wave"></i></button>
+                <button @click="activeTab = 'payout'; loadPayoutData()" :class="activeTab == 'payout' ? 'bg-yellow-500' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition" title="Payout"><i class="fas fa-file-invoice-dollar"></i></button>
+                <button @click="activeTab = 'summary'; loadPayoutData()" :class="activeTab == 'summary' ? 'bg-purple-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition" title="Earnings Summary"><i class="fas fa-chart-pie"></i></button>
                 <button @click="handleRiderLogout" class="bg-red-600/30 hover:bg-red-600/50 text-red-300 text-[10px] font-black px-2.5 py-1.5 rounded-lg transition">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
@@ -121,6 +153,7 @@
 
         <!-- ==================== ORDERS TAB ==================== -->
         <main v-if="activeTab == 'orders'" class="p-4 flex-1 space-y-4 pb-24">
+
             <!-- Stats -->
             <div class="grid grid-cols-4 gap-2">
                 <div class="bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-3 text-center shadow-sm">
@@ -144,24 +177,27 @@
             <!-- Search -->
             <div class="relative">
                 <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs"></i>
-                <input type="text" v-model="orderSearch" placeholder="Search by Name, Mobile, Order ID..." class="w-full pl-9 pr-3 py-2.5 border rounded-xl text-xs bg-white shadow-inner outline-none focus:border-emerald-500">
+                <input type="text" v-model="orderSearch" placeholder="Search by Name, Mobile, Order ID, Product..." class="w-full pl-9 pr-3 py-2.5 border rounded-xl text-xs bg-white shadow-inner outline-none focus:border-emerald-500">
             </div>
 
             <!-- Filter Chips -->
             <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
                 <button @click="orderStatusFilter = 'all'" :class="{'active': orderStatusFilter == 'all'}" class="filter-chip">All ({{ orders.length }})</button>
                 <button @click="orderStatusFilter = 'pending'" :class="{'active': orderStatusFilter == 'pending'}" class="filter-chip bg-yellow-50">Pending</button>
+                <button @click="orderStatusFilter = 'confirmed'" :class="{'active': orderStatusFilter == 'confirmed'}" class="filter-chip bg-blue-50">Confirmed</button>
                 <button @click="orderStatusFilter = 'shipped'" :class="{'active': orderStatusFilter == 'shipped'}" class="filter-chip bg-purple-50">Shipped</button>
                 <button @click="orderStatusFilter = 'delivered'" :class="{'active': orderStatusFilter == 'delivered'}" class="filter-chip bg-green-50">Delivered</button>
+                <button @click="orderStatusFilter = 'cancelled'" :class="{'active': orderStatusFilter == 'cancelled'}" class="filter-chip bg-red-50">Cancelled</button>
             </div>
 
             <!-- Orders List -->
             <div class="space-y-4">
                 <div v-for="order in filteredOrders" :key="order.id" class="border border-gray-100 rounded-2xl shadow-sm bg-white overflow-hidden border-t-4" :class="getBorderClass(order.status)">
-                    <div class="bg-gray-50/80 px-3.5 py-2.5 border-b flex justify-between items-center text-xs">
+                    <div :class="(!order.assignedRider && !order.assignedRiderPhone) ? 'bg-orange-50' : 'bg-gray-50/80'" class="px-3.5 py-2.5 border-b flex justify-between items-center text-xs">
                         <div>
                             <div class="flex items-center gap-2">
                                 <p class="font-mono font-black text-gray-800">#{{ getShortId(order.id) }}</p>
+                                <span v-if="!order.assignedRider && !order.assignedRiderPhone" class="bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse">🆕 NEW</span>
                             </div>
                             <p class="text-[10px] text-gray-400">{{ formatDate(order.date) }}</p>
                         </div>
@@ -171,80 +207,219 @@
                         </div>
                     </div>
                     <div class="p-3.5 space-y-2 text-xs">
+                        <!-- Shop Name Badge -->
+                        <div v-if="order.items && order.items[0] && order.items[0].shopkeeperName" class="flex items-center gap-1.5 mb-1">
+                            <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold"><i class="fas fa-store mr-1"></i>{{ order.items[0].shopkeeperName }}</span>
+                        </div>
                         <div class="flex items-center justify-between">
                             <p class="font-bold"><i class="fas fa-user mr-1 text-gray-400"></i>{{ order.customerName }}</p>
+                            <!-- FIXED CALL BUTTON - Using tel: scheme properly -->
                             <a :href="'tel:' + order.customerPhone" class="bg-green-100 text-green-800 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 text-xs">
                                 <i class="fas fa-phone-alt"></i> Call
                             </a>
                         </div>
+                        <!-- Order Items with Seller -->
+                        <div v-if="order.items && order.items.length" class="bg-blue-50/60 p-2.5 rounded-xl">
+                            <p class="text-[10px] font-bold text-gray-400 mb-1.5">🛍️ Items:</p>
+                            <div class="flex flex-col gap-1.5">
+                                <div v-for="item in order.items" :key="item.id||item.name" class="bg-white border border-blue-100 px-2.5 py-1.5 rounded-lg">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-[11px] font-bold text-gray-800 truncate">{{ item.name }}</p>
+                                        <span class="text-blue-600 font-black text-[10px] bg-blue-50 px-1.5 py-0.5 rounded-full flex-shrink-0">x{{ item.quantity }}</span>
+                                    </div>
+                                    <div class="flex items-center gap-1 mt-0.5">
+                                        <span class="bg-indigo-100 text-indigo-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                            <i class="fas fa-store text-[8px]"></i> {{ getSellerForItem(item) }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="bg-slate-50 p-2.5 rounded-xl">
-                            <p class="text-[10px] font-bold text-gray-400">📍 Address:</p>
+                            <p class="text-[10px] font-bold text-gray-400">📍 Delivery Address:</p>
                             <p class="font-medium">{{ order.customerAddress }}</p>
                         </div>
                         <div class="flex justify-between items-center">
                             <span class="text-gray-500">Amount:</span>
-                            <span class="font-black text-green-700">₹{{ Number(order.total).toFixed(2) }}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="font-black text-green-700">₹{{ Number(order.total).toFixed(2) }}</span>
+                                <!-- COD Badge -->
+                                <span v-if="!order.paymentMethod || order.paymentMethod === 'COD'" class="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded-full border border-orange-300">
+                                    💵 COD
+                                </span>
+                                <!-- Online Paid Badge -->
+                                <span v-if="order.paymentMethod === 'ONLINE'" class="bg-green-100 text-green-700 text-[9px] font-black px-2 py-0.5 rounded-full border border-green-300 flex items-center gap-1">
+                                    ✅ Online Paid
+                                </span>
+                            </div>
                         </div>
 
-                        <!-- Dropdown Status Controls -->
-                        <div class="flex gap-2 mt-1">
-                            <div v-if="order.status === 'delivered'" class="flex-1 border-2 border-green-400 rounded-xl px-3 py-2 text-xs font-bold bg-green-50 text-green-700 flex items-center gap-2 cursor-not-allowed select-none">
-                                <i class="fas fa-lock text-green-500"></i>
-                                <span>🏠 Delivered — Saved</span>
+                        <!-- Online Payment Details Banner -->
+                        <div v-if="order.paymentMethod === 'ONLINE'" class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-2.5 space-y-1.5">
+                            <p class="text-[10px] font-black text-green-700 flex items-center gap-1.5">
+                                <i class="fas fa-shield-alt"></i> Online Payment Verified
+                            </p>
+                            <div v-if="order.utrNumber" class="flex items-center justify-between">
+                                <span class="text-[10px] text-gray-500">UTR Number:</span>
+                                <span class="text-[10px] font-black text-gray-800 font-mono bg-white px-2 py-0.5 rounded-lg border">{{ order.utrNumber }}</span>
                             </div>
+                            <div v-if="order.paymentScreenshot" class="flex items-center justify-between">
+                                <span class="text-[10px] text-gray-500">Payment Proof:</span>
+                                <a :href="order.paymentScreenshot" target="_blank" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200 flex items-center gap-1">
+                                    <i class="fas fa-image"></i> Screenshot dekho
+                                </a>
+                            </div>
+                            <div v-if="order.paymentVerifiedAt" class="flex items-center justify-between">
+                                <span class="text-[10px] text-gray-500">Paid on:</span>
+                                <span class="text-[10px] font-semibold text-gray-600">{{ formatDate(order.paymentVerifiedAt) }}</span>
+                            </div>
+                            <p class="text-[9px] text-green-600 font-semibold bg-green-100 rounded-lg px-2 py-1 text-center">
+                                🎉 Delivery par customer se cash mat maango — payment ho chuki hai!
+                            </p>
+                        </div>
+
+                        <!-- Cancel Reason Banner -->
+                        <div v-if="order.status === 'cancelled' || order.status === 'rejected'" class="bg-red-50 border border-red-200 rounded-xl p-2.5 flex items-start gap-2">
+                            <i class="fas fa-times-circle text-red-500 mt-0.5"></i>
+                            <div>
+                                <p class="text-[10px] font-black text-red-600">❌ Order Cancel Ho Gaya</p>
+                                <p v-if="order.cancelReason" class="text-[10px] text-red-500 mt-0.5">Reason: {{ order.cancelReason }}</p>
+                                <p v-if="order.cancelledByName" class="text-[9px] text-gray-400 mt-0.5">By: {{ order.cancelledByName }}</p>
+                            </div>
+                        </div>
+
+                        <!-- 🔒 ONLINE PAYMENT PENDING LOCK BANNER -->
+                        <div v-if="order.paymentMethod === 'ONLINE' && !order.paymentApprovedByAdmin" class="bg-amber-50 border-2 border-amber-400 rounded-xl p-3 flex items-start gap-2.5 mt-1">
+                            <i class="fas fa-lock text-amber-500 text-base mt-0.5"></i>
+                            <div class="flex-1">
+                                <p class="text-[11px] font-black text-amber-700">🔒 Admin Approval Pending</p>
+                                <p class="text-[10px] text-amber-600 mt-0.5">Online payment verify hone ke baad Admin approve karega — tab aap order confirm kar sakenge.</p>
+                            </div>
+                        </div>
+                        <!-- ✅ ONLINE PAYMENT APPROVED BANNER -->
+                        <div v-if="order.paymentMethod === 'ONLINE' && order.paymentApprovedByAdmin" class="bg-green-50 border border-green-300 rounded-xl p-2.5 flex items-center gap-2 mt-1">
+                            <i class="fas fa-unlock text-green-600 text-sm"></i>
+                            <p class="text-[10px] font-black text-green-700">✅ Admin ne Payment Approve kiya — Panel Unlocked!</p>
+                        </div>
+
+                        <!-- 🔒 LOCKED STATE — Admin approval nahi mili abhi tak -->
+                        <div v-if="order.paymentMethod === 'ONLINE' && !order.paymentApprovedByAdmin" class="flex gap-2 mt-1">
+                            <div class="flex-1 border-2 border-amber-300 rounded-xl px-3 py-2 text-xs font-bold bg-amber-50 text-amber-600 flex items-center gap-2 cursor-not-allowed select-none">
+                                <i class="fas fa-lock text-amber-500"></i>
+                                <span>🔒 Locked — Admin Approval ka Wait karein</span>
+                            </div>
+                        </div>
+
+                        <!-- ✅ UNLOCKED STATE — Normal status change (only shown when NO lock) -->
+                        <div v-else class="flex gap-2 mt-1">
+
+                            <!-- 🔒 DELIVERED — Lock ho gaya, change nahi ho sakta -->
+                            <div v-if="order.status === 'delivered'" class="flex-1 flex items-center gap-2">
+                                <div class="flex-1 border-2 border-green-400 rounded-xl px-3 py-2 text-xs font-bold bg-green-50 text-green-700 flex items-center gap-2 cursor-not-allowed select-none">
+                                    <i class="fas fa-lock text-green-500"></i>
+                                    <span>🏠 Delivered — Final</span>
+                                </div>
+                                <span v-if="order.deliveryPhoto" class="bg-green-100 text-green-700 px-3 py-2 rounded-xl text-[10px] font-bold"><i class="fas fa-check-circle"></i> Photo</span>
+                            </div>
+
+                            <!-- Normal dropdown (only for non-delivered orders) -->
                             <template v-else>
-                                <select v-model="order.status" @change="mutateOrderStatus(order)" class="flex-1 border rounded-xl px-3 py-2 text-xs font-bold bg-white">
+                                <select v-model="order.status" @change="mutateOrderStatus(order)" class="flex-1 border rounded-xl px-3 py-2 text-xs font-bold bg-white" :disabled="order.status === 'cancelled'">
                                     <option value="pending">⏳ Pending</option>
-                                    <option value="confirmed">✅ Confirm</option>
+                                    <option value="confirmed">✅ Order Confirmed</option>
                                     <option value="shipped">🚚 Out for Delivery</option>
                                     <option value="delivered">🏠 Delivered</option>
+                                    <option value="cancelled">❌ Cancelled</option>
                                 </select>
+                                <!-- Photo Capture Button (only for delivered) -->
                                 <button v-if="order.status === 'delivered' && !order.deliveryPhoto" @click="openCameraForOrder(order)" class="bg-purple-600 text-white px-3 rounded-xl text-[10px] font-bold">
-                                    <i class="fas fa-camera"></i> Photo
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                                <!-- Cancel Button -->
+                                <button v-if="order.status !== 'cancelled'" @click="cancelOrder(order)" class="bg-red-100 text-red-700 hover:bg-red-200 px-3 rounded-xl text-[10px] font-bold">
+                                    <i class="fas fa-times"></i>
                                 </button>
                             </template>
                         </div>
                     </div>
                 </div>
+                <div v-if="filteredOrders.length === 0" class="text-center py-20 text-gray-400 text-xs">
+                    <i class="fas fa-box-open text-4xl mb-3 opacity-30"></i>
+                    <p class="font-bold text-sm text-gray-500">Koi order assign nahi hua</p>
+                    <p class="mt-1 text-[11px]">Admin ya Dukandar jab order assign karega, yahan dikhega</p>
+                </div>
             </div>
         </main>
 
-        <!-- ==================== WITHDRAW / EARNINGS PAGE ==================== -->
+        <!-- ==================== EARNINGS TAB ==================== -->
         <main v-if="activeTab == 'earnings'" class="p-4 flex-1 space-y-4 pb-24">
+
+            <!-- Total Earning Card -->
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-5 text-white shadow-lg">
+                <p class="text-[10px] opacity-80 uppercase tracking-wide font-bold">💰 Total Earning</p>
+                <p class="text-4xl font-black mt-1">₹{{ totalGrossEarnings.toFixed(2) }}</p>
+                <p class="text-xs mt-1 opacity-80">{{ deliveredOrders.length }} deliveries × ₹{{ perDeliveryRate }} per delivery</p>
+                <div class="mt-3 pt-3 border-t border-white/20 grid grid-cols-3 gap-2 text-center text-[10px]">
+                    <div>
+                        <p class="opacity-70">Total Deliveries</p>
+                        <p class="font-black text-lg">{{ deliveredOrders.length }}</p>
+                    </div>
+                    <div>
+                        <p class="opacity-70">Today</p>
+                        <p class="font-black text-lg">{{ todayDeliveredCount }}</p>
+                    </div>
+                    <div>
+                        <p class="opacity-70">Rate/Order</p>
+                        <p class="font-black text-lg">₹{{ perDeliveryRate }}</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Available Balance Card -->
             <div class="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
-                <p class="text-[10px] opacity-80 uppercase tracking-wide font-bold">🏦 Available Wallet Balance</p>
+                <p class="text-[10px] opacity-80 uppercase tracking-wide font-bold">🏦 Available Balance</p>
                 <p class="text-4xl font-black mt-1">₹{{ totalEarnings.toFixed(2) }}</p>
                 <div class="mt-3 pt-3 border-t border-white/20 flex justify-between text-[11px]">
-                    <span class="opacity-80">Live from Wallet</span>
-                    <span class="opacity-80">Withdrawn Approved: ₹{{ totalWithdrawn.toFixed(2) }}</span>
+                    <span class="opacity-80 flex items-center gap-1"><i class="fas fa-database text-[9px]"></i> Live from Firebase wallet</span>
+                    <span class="opacity-80">Withdrawn: ₹{{ totalWithdrawn.toFixed(2) }}</span>
                 </div>
                 <div v-if="totalPending > 0" class="mt-1.5 text-[10px] text-yellow-200 flex items-center gap-1.5">
-                    <i class="fas fa-clock"></i> Pending for Approval: ₹{{ totalPending.toFixed(2) }}
+                    <i class="fas fa-clock"></i>
+                    Pending Request: ₹{{ totalPending.toFixed(2) }} — Admin approval awaited
                 </div>
             </div>
 
-            <!-- Total Delivered Payment Info -->
-            <div class="bg-white rounded-xl p-4 border shadow-sm flex justify-between items-center">
-                <div>
-                    <p class="text-[10px] text-gray-400 uppercase font-bold">Delivered Orders Earnings</p>
-                    <p class="text-xl font-black text-emerald-600">₹{{ totalGrossEarnings.toFixed(2) }}</p>
-                    <p class="text-[10px] text-gray-400">{{ deliveredOrders.length }} deliveries × ₹{{ perDeliveryRate }}/Order</p>
+            <!-- Today Stats -->
+            <div class="bg-white rounded-xl p-4 border shadow-sm">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold">Per Delivery Rate</p>
+                        <p class="text-xl font-black text-emerald-600">₹{{ perDeliveryRate }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-gray-400 uppercase font-bold">Today's Earnings</p>
+                        <p class="text-xl font-black text-blue-600">₹{{ todayEarnings.toFixed(2) }}</p>
+                    </div>
                 </div>
-                <button @click="showWithdrawModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow transition">
-                    <i class="fas fa-money-check-alt"></i> Send Withdraw Request
-                </button>
             </div>
 
-            <!-- Past Requests -->
+            <!-- Withdraw Earnings -->
             <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-                <div class="px-4 py-3 bg-gray-50 border-b">
-                    <p class="text-xs font-bold text-gray-600 uppercase tracking-wide">Withdrawal Transaction History</p>
+                <div class="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b flex justify-between items-center">
+                    <div>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Available Balance</p>
+                        <p class="text-2xl font-black text-indigo-700">₹{{ totalEarnings.toFixed(2) }}</p>
+                    </div>
+                    <button @click="showWithdrawModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow transition">
+                        <i class="fas fa-paper-plane"></i> Withdraw
+                    </button>
                 </div>
+
+                <!-- Past Requests -->
                 <div v-if="withdrawRequests.length" class="divide-y">
                     <div v-for="req in withdrawRequests" :key="req.id" class="px-4 py-2.5 flex justify-between items-center">
                         <div>
-                            <p class="text-xs font-bold text-gray-800">Amount: ₹{{ req.amount }}</p>
+                            <p class="text-xs font-bold text-gray-800">₹{{ req.amount }}</p>
                             <p class="text-[10px] text-gray-400">{{ formatDate(req.requestedAt) }}</p>
                             <p class="text-[10px] text-gray-400">UPI: {{ req.upiId }}</p>
                         </div>
@@ -253,162 +428,474 @@
                             'bg-green-100 text-green-700': req.status === 'approved',
                             'bg-red-100 text-red-700': req.status === 'rejected'
                         }" class="px-2.5 py-1 rounded-full text-[10px] font-bold capitalize">
-                            {{ req.status }}
+                            <i :class="{
+                                'fas fa-clock': req.status === 'pending',
+                                'fas fa-check-circle': req.status === 'approved',
+                                'fas fa-times-circle': req.status === 'rejected'
+                            }" class="mr-1"></i>{{ req.status }}
                         </span>
                     </div>
                 </div>
-                <div v-else class="px-4 py-5 text-center text-[11px] text-gray-400">No withdrawal requests found</div>
-            </div>
-        </main>
-
-        <!-- ==================== ADMIN PAYOUT PAGE (MONTHLY SETUP) ==================== -->
-        <main v-if="activeTab == 'payout'" class="p-4 flex-1 space-y-4 pb-24">
-            <!-- Month Selector -->
-            <div class="bg-white rounded-2xl border shadow-sm p-4">
-                <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-2"><i class="fas fa-calendar-alt text-yellow-500 mr-1"></i> Select Payout Month</p>
-                <select v-model="selectedPayoutMonth" @change="loadPayoutData" class="w-full border border-gray-200 rounded-xl p-2.5 text-sm font-bold text-gray-700 bg-gray-50 outline-none">
-                    <option v-for="m in payoutMonths" :key="m.value" :value="m.value">{{ m.label }}</option>
-                </select>
+                <div v-else class="px-4 py-3 text-center text-[11px] text-gray-400">No withdrawal requests yet</div>
             </div>
 
-            <div v-if="payoutLoading" class="text-center py-10 text-gray-400">
-                <i class="fas fa-circle-notch fa-spin text-3xl text-yellow-500"></i>
-                <p class="text-xs mt-2 font-semibold">Loading Admin Setup Payout...</p>
-            </div>
-
-            <template v-else>
-                <!-- Month Summary Card -->
-                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
-                    <div class="px-4 py-3 bg-slate-800 text-white flex justify-between items-center">
-                        <div>
-                            <p class="text-[10px] opacity-60 uppercase font-bold">Admin Monthly Payout Setup</p>
-                            <p class="font-black text-base mt-0.5">{{ selectedPayoutMonthLabel }}</p>
-                        </div>
-                        <span :class="payoutData.status === 'paid' ? 'bg-green-400 text-green-900' : 'bg-yellow-400 text-yellow-900'" class="text-[10px] font-black px-3 py-1.5 rounded-full uppercase">
-                            {{ payoutData.status === 'paid' ? '✅ Paid' : '⏳ Pending' }}
-                        </span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-px bg-gray-100">
-                        <div class="bg-white p-4 text-center">
-                            <p class="text-2xl font-black text-blue-600">{{ payoutData.workingDays || 0 }}</p>
-                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">📅 Total Working Days</p>
-                        </div>
-                        <div class="bg-white p-4 text-center">
-                            <p class="text-2xl font-black text-green-600">{{ payoutData.paidDays || 0 }}</p>
-                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">✅ Present Days</p>
-                        </div>
-                        <div class="bg-white p-4 text-center">
-                            <p class="text-2xl font-black text-red-500">{{ payoutData.absentDays || 0 }}</p>
-                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">❌ Absent Days</p>
-                        </div>
-                        <div class="bg-white p-4 text-center">
-                            <p class="text-2xl font-black text-purple-600">{{ payoutData.overtimeHours || 0 }} hrs</p>
-                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">⏱️ Overtime Hours</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Salary breakdown structure -->
-                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden text-sm">
-                    <div class="px-4 py-3 bg-emerald-600 text-white font-bold">💰 Salary & Allowances Breakdown</div>
-                    <div class="divide-y">
-                        <div class="px-4 py-3 flex justify-between">
-                            <span>Base Monthly Salary</span>
-                            <span class="font-black">₹{{ (payoutData.baseSalary || 0).toLocaleString('en-IN') }}</span>
-                        </div>
-                        <div class="px-4 py-3 flex justify-between text-green-600">
-                            <span>Overtime Pay (₹{{payoutData.overtimeRate || 0}}/hr)</span>
-                            <span class="font-black">+₹{{ overtimePay.toLocaleString('en-IN') }}</span>
-                        </div>
-                        <div class="px-4 py-3 flex justify-between text-green-600">
-                            <span>Performance Incentive</span>
-                            <span class="font-black">+₹{{ (payoutData.incentives || 0).toLocaleString('en-IN') }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden text-sm">
-                    <div class="px-4 py-3 bg-red-500 text-white font-bold">✂️ Attendance & Advance Cuts</div>
-                    <div class="divide-y">
-                        <div class="px-4 py-3 flex justify-between text-red-500">
-                            <span>Absent Deductions</span>
-                            <span class="font-black">-₹{{ absentDeduction.toLocaleString('en-IN') }}</span>
-                        </div>
-                        <div class="px-4 py-3 flex justify-between text-red-500">
-                            <span>Penalty / Fine Applied</span>
-                            <span class="font-black">-₹{{ (payoutData.deductions || 0).toLocaleString('en-IN') }}</span>
-                        </div>
-                        <div class="px-4 py-3 flex justify-between text-red-500">
-                            <span>Advance Salary Cut</span>
-                            <span class="font-black">-₹{{ (payoutData.advances || 0).toLocaleString('en-IN') }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- In Hand Final Salary Statement -->
-                <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-xl flex justify-between items-center">
+            <!-- Weekly Summary -->
+            <div class="space-y-2">
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-wide"><i class="fas fa-calendar-week mr-1"></i> Recent Deliveries</p>
+                <div v-for="order in recentDeliveredOrders" :key="order.id" class="bg-gray-50 rounded-xl p-3 flex justify-between items-center border">
                     <div>
-                        <p class="text-[10px] uppercase tracking-wider text-gray-400">Net In-Hand Salary Setup</p>
-                        <p class="text-3xl font-black text-yellow-400 mt-1">₹{{ inHandSalary.toLocaleString('en-IN') }}</p>
+                        <p class="font-mono text-xs font-bold">#{{ getShortId(order.id) }}</p>
+                        <p class="text-[10px] text-gray-500">{{ formatDate(order.deliveredAt || order.date) }}</p>
                     </div>
-                    <div class="text-right text-[11px] text-gray-300 space-y-0.5">
-                        <p>Gross: ₹{{ grossPay }}</p>
-                        <p>Total Cuts: ₹{{ totalDeductions }}</p>
+                    <div class="text-right">
+                        <p class="font-bold text-green-600">+₹{{ perDeliveryRate }}</p>
+                        <span v-if="order.deliveryPhoto" class="text-[9px] text-purple-500"><i class="fas fa-image"></i> POD</span>
                     </div>
                 </div>
-                
-                <div v-if="payoutData.adminNote" class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs">
-                    <strong>Admin Note:</strong> {{ payoutData.adminNote }}
-                </div>
-            </template>
+                <div v-if="recentDeliveredOrders.length === 0" class="text-center py-10 text-gray-400 text-xs">No deliveries yet</div>
+            </div>
         </main>
 
-        <!-- WITHDRAW MODAL -->
+        <!-- ==================== WITHDRAW MODAL ==================== -->
         <div v-if="showWithdrawModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="showWithdrawModal = false">
             <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
-                <div class="bg-indigo-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
-                    <h3 class="font-bold text-sm">Withdraw Earnings Wallet</h3>
-                    <button @click="showWithdrawModal = false" class="text-white"><i class="fas fa-times"></i></button>
+                <div class="bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold text-sm"><i class="fas fa-wallet mr-2"></i>Withdraw Earnings</h3>
+                        <p class="text-[10px] opacity-80 mt-0.5">Request bhejne ke baad balance se turant cute ho jayega</p>
+                    </div>
+                    <button @click="showWithdrawModal = false" class="text-white/70 hover:text-white"><i class="fas fa-times text-lg"></i></button>
                 </div>
                 <div class="p-4 space-y-3 text-xs">
                     <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex justify-between items-center">
-                        <span class="font-bold text-gray-600">Available Wallet Balance</span>
+                        <span class="font-bold text-gray-600">Available Balance</span>
                         <span class="font-black text-indigo-700 text-lg">₹{{ totalEarnings.toFixed(2) }}</span>
                     </div>
                     <div>
-                        <label class="block font-bold text-gray-700 mb-1">Amount to Withdraw (₹)</label>
-                        <input type="number" v-model="withdrawAmount" placeholder="Enter amount" class="w-full p-2.5 border rounded-xl outline-none">
+                        <label class="block font-bold text-gray-700 mb-1.5">Withdraw Amount (₹) *</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 font-bold">₹</span>
+                            <input type="number" v-model="withdrawAmount" :max="totalEarnings" min="1" placeholder="Enter amount" class="w-full pl-8 pr-3 py-2.5 border rounded-xl outline-none focus:border-indigo-500">
+                        </div>
                     </div>
                     <div>
-                        <label class="block font-bold text-gray-700 mb-1">Enter UPI ID</label>
-                        <input type="text" v-model="withdrawUPI" placeholder="username@upi" class="w-full p-2.5 border rounded-xl outline-none">
+                        <label class="block font-bold text-gray-700 mb-1.5">UPI ID *</label>
+                        <div class="relative">
+                            <i class="fas fa-at absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <input type="text" v-model="withdrawUPI" placeholder="yourname@upi" class="w-full pl-8 pr-3 py-2.5 border rounded-xl outline-none focus:border-indigo-500">
+                        </div>
                     </div>
-                    <div class="flex gap-2 pt-2">
-                        <button @click="showWithdrawModal = false" class="flex-1 bg-gray-100 py-2 rounded-xl font-bold">Cancel</button>
-                        <button @click="submitWithdrawRequest" :disabled="withdrawLoading" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl font-bold">
-                            {{ withdrawLoading ? 'Processing...' : 'Submit Request' }}
+                    <div class="flex gap-2 pt-1">
+                        <button @click="showWithdrawModal = false" class="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl font-bold">Cancel</button>
+                        <button @click="submitWithdrawRequest" :disabled="withdrawLoading" class="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white py-2.5 rounded-xl font-bold flex items-center justify-center gap-2">
+                            <i v-if="withdrawLoading" class="fas fa-circle-notch fa-spin text-xs"></i>
+                            <i v-else class="fas fa-paper-plane text-xs"></i>
+                            {{ withdrawLoading ? 'Sending...' : 'Send Request' }}
                         </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- CAMERA PROOF MODAL -->
+        <!-- ==================== CAMERA MODAL FOR PROOF OF DELIVERY ==================== -->
         <div v-if="cameraActive" class="camera-preview">
-            <div class="bg-black text-white p-3 flex justify-between items-center">
-                <h3 class="text-sm font-bold">📸 Capture Delivery Proof Photo</h3>
-                <button @click="closeCamera" class="text-white"><i class="fas fa-times"></i></button>
+            <div class="bg-black/90 text-white p-3 flex justify-between items-center">
+                <h3 class="text-sm font-bold">📸 Proof of Delivery</h3>
+                <button @click="closeCamera" class="text-white/70"><i class="fas fa-times text-xl"></i></button>
             </div>
-            <div class="flex-1 bg-black flex items-center justify-center">
+            <div class="flex-1 relative bg-black flex items-center justify-center">
                 <video ref="video" class="w-full h-auto max-h-[70vh] object-cover" autoplay playsinline muted></video>
+                <div v-if="photoUploading" class="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-3">
+                    <div style="width:40px;height:40px;border:3px solid #10b981;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+                    <p class="text-white text-sm font-bold">Uploading photo...</p>
+                </div>
                 <canvas ref="canvas" style="display: none;"></canvas>
             </div>
             <div class="p-4 bg-black flex gap-3">
-                <button @click="capturePhoto" :disabled="photoUploading" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">
-                    {{ photoUploading ? 'Uploading Image...' : 'Capture Photo' }}
+                <button @click="capturePhoto" :disabled="photoUploading" class="flex-1 bg-green-600 disabled:bg-green-400 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                    <i :class="photoUploading ? 'fas fa-circle-notch fa-spin' : 'fas fa-camera'"></i>
+                    {{ photoUploading ? 'Uploading...' : 'Capture Photo' }}
                 </button>
+                <button @click="closeCamera" class="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold">Cancel</button>
             </div>
         </div>
+
+        <!-- QR Scanner Modal -->
+        <div v-if="showScanner" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" @click.self="closeScanner">
+            <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
+                <div class="bg-slate-900 text-white p-3 flex justify-between items-center">
+                    <h3 class="text-sm font-bold"><i class="fas fa-qrcode mr-2 text-green-400"></i>QR Scanner</h3>
+                    <button @click="closeScanner" class="text-white/70 text-lg">&times;</button>
+                </div>
+                <!-- Scan Mode Toggle -->
+                <div class="flex border-b">
+                    <button @click="scanMode='order'" :class="scanMode==='order' ? 'border-b-2 border-green-500 text-green-700 font-bold bg-green-50' : 'text-gray-500'" class="flex-1 py-2.5 text-[11px] font-bold">
+                        <i class="fas fa-clipboard-list mr-1"></i> Order ID
+                    </button>
+                    <button @click="scanMode='product'" :class="scanMode==='product' ? 'border-b-2 border-indigo-500 text-indigo-700 font-bold bg-indigo-50' : 'text-gray-500'" class="flex-1 py-2.5 text-[11px] font-bold">
+                        <i class="fas fa-box mr-1"></i> Product QR
+                    </button>
+                </div>
+                <!-- Scan Result Banner -->
+                <div v-if="scanResult" class="mx-3 mt-3 rounded-xl p-2.5 text-xs font-semibold flex items-center gap-2"
+                    :class="scanResult.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'">
+                    <i :class="scanResult.success ? 'fas fa-check-circle' : 'fas fa-times-circle'"></i>
+                    {{ scanResult.message }}
+                </div>
+                <div class="p-3">
+                    <div id="qr-reader" class="w-full rounded-xl overflow-hidden"></div>
+                    <p class="text-[10px] text-center text-gray-400 mt-2">
+                        <span v-if="scanMode==='order'">📦 Order QR ya Invoice QR scan karein</span>
+                        <span v-else>🏷️ Product ka QR Code scan karein</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice Modal -->
+        <div v-if="showInvoiceModal" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" @click.self="closeInvoiceModal">
+            <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl invoice-modal">
+                <div class="bg-slate-900 text-white p-3 flex justify-between rounded-t-2xl">
+                    <h3 class="text-sm font-bold">Invoice</h3>
+                    <button @click="closeInvoiceModal"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="p-4 invoice-print-area" id="invoice-print-area">
+                    <div class="text-center border-b pb-3">
+                        <h2 class="text-xl font-black text-blue-600">Pinkkart</h2>
+                        <p class="text-[10px] text-gray-500">Delivery Invoice</p>
+                    </div>
+                    <div class="space-y-2 text-xs" v-if="currentInvoiceOrder">
+                        <div class="flex justify-between"><span class="text-gray-500">Order ID:</span><span class="font-mono font-bold">#{{ getShortId(currentInvoiceOrder.id) }}</span></div>
+                        <div class="border-t my-2"></div>
+                        <div><p class="font-bold">Customer: {{ currentInvoiceOrder.customerName }}</p><p class="text-gray-500">{{ currentInvoiceOrder.customerPhone }}</p><p class="text-[10px]">{{ currentInvoiceOrder.customerAddress }}</p></div>
+                        <div class="border-t my-2"></div>
+                        <p class="font-bold">Items:</p>
+                        <div v-for="item in currentInvoiceOrder.items" class="text-[11px] py-1 border-b border-dashed border-gray-100 last:border-0">
+                            <div class="flex justify-between">
+                                <span class="font-semibold text-gray-800">{{ item.name }} x{{ item.quantity }}</span>
+                                <span class="font-bold text-green-700">₹{{ (item.price * item.quantity).toFixed(2) }}</span>
+                            </div>
+                            <div class="text-[10px] text-indigo-600 font-semibold mt-0.5 flex items-center gap-1">
+                                <i class="fas fa-store text-[9px]"></i> {{ getSellerForItem(item) }}
+                            </div>
+                        </div>
+                        <div class="border-t my-2"></div>
+                        <div class="flex justify-between font-bold"><span>Total:</span><span class="text-green-700">₹{{ Number(currentInvoiceOrder.total).toFixed(2) }}</span></div>
+                        <div class="text-center text-[9px] text-gray-400 mt-3">Delivered by: {{ loggedInRider.name }}</div>
+                    </div>
+                </div>
+                <div class="p-3 border-t flex gap-2">
+                    <button @click="printInvoicePage" class="flex-1 bg-blue-600 text-white py-2 rounded-xl text-xs font-bold">Print</button>
+                    <button @click="closeInvoiceModal" class="flex-1 bg-gray-200 py-2 rounded-xl text-xs font-bold">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating QR Scan Button -->
+        <button @click="openQRScanner" class="fixed bottom-20 right-4 bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-xl z-30">
+            <i class="fas fa-qrcode"></i>
+        </button>
+
+        <!-- ==================== PAYOUT TAB ==================== -->
+        <main v-if="activeTab == 'payout'" class="p-4 flex-1 space-y-4 pb-24">
+
+            <!-- Month Selector -->
+            <div class="bg-white rounded-2xl border shadow-sm p-4">
+                <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-2"><i class="fas fa-calendar-alt mr-1 text-yellow-500"></i> Month Select Karein</p>
+                <select v-model="selectedPayoutMonth" @change="loadPayoutData" class="w-full border border-gray-200 rounded-xl p-2.5 text-sm font-bold text-gray-700 outline-none focus:border-yellow-500 bg-gray-50">
+                    <option v-for="m in payoutMonths" :key="m.value" :value="m.value">{{ m.label }}</option>
+                </select>
+            </div>
+
+            <!-- Loading -->
+            <div v-if="payoutLoading" class="text-center py-10 text-gray-400">
+                <i class="fas fa-circle-notch fa-spin text-3xl text-yellow-500"></i>
+                <p class="text-xs mt-2 font-semibold">Loading payout data...</p>
+            </div>
+
+            <template v-else>
+
+                <!-- Month Summary Card -->
+                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 bg-gradient-to-r from-slate-800 to-slate-700 text-white flex justify-between items-center">
+                        <div>
+                            <p class="text-[10px] opacity-60 uppercase font-bold tracking-wider">Month Summary</p>
+                            <p class="font-black text-base mt-0.5">{{ selectedPayoutMonthLabel }}</p>
+                        </div>
+                        <span :class="payoutData.status === 'paid' ? 'bg-green-400 text-green-900' : 'bg-yellow-400 text-yellow-900'"
+                            class="text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-wide">
+                            {{ payoutData.status === 'paid' ? '✅ Paid' : '⏳ Pending' }}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-px bg-gray-100">
+                        <div class="bg-white p-4 text-center">
+                            <p class="text-2xl font-black text-blue-600">{{ payoutData.workingDays || 0 }}</p>
+                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">📅 Working Days</p>
+                        </div>
+                        <div class="bg-white p-4 text-center">
+                            <p class="text-2xl font-black text-green-600">{{ payoutData.paidDays || 0 }}</p>
+                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">✅ Paid Days</p>
+                        </div>
+                        <div class="bg-white p-4 text-center">
+                            <p class="text-2xl font-black text-red-500">{{ payoutData.absentDays || 0 }}</p>
+                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">❌ Absent Days</p>
+                        </div>
+                        <div class="bg-white p-4 text-center">
+                            <p class="text-2xl font-black text-purple-600">{{ payoutData.overtimeHours || 0 }}<span class="text-sm"> hrs</span></p>
+                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">⏱️ Overtime Hours</p>
+                        </div>
+                    </div>
+                    <div v-if="payoutData.paidOn" class="px-4 py-2 bg-green-50 text-center text-[10px] text-green-700 font-bold border-t border-green-100">
+                        <i class="fas fa-check-circle mr-1"></i> Paid on: {{ formatDate(payoutData.paidOn) }}
+                    </div>
+                </div>
+
+                <!-- Salary Breakdown — Earnings -->
+                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-500 text-white">
+                        <p class="text-[10px] opacity-80 uppercase font-bold tracking-wider">Salary Breakdown</p>
+                        <p class="font-black text-base mt-0.5">💰 Earnings</p>
+                    </div>
+                    <div class="divide-y divide-gray-50 text-sm">
+                        <div class="px-4 py-3.5 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-700">Base Salary</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">Fixed monthly salary</p>
+                            </div>
+                            <p class="font-black text-gray-800 text-base">₹{{ (payoutData.baseSalary || 0).toLocaleString('en-IN') }}</p>
+                        </div>
+                        <div class="px-4 py-3.5 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-700">Overtime Pay</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">{{ payoutData.overtimeHours || 0 }} hrs × ₹{{ payoutData.overtimeRate || 0 }}/hr</p>
+                            </div>
+                            <p class="font-black text-green-600 text-base">+₹{{ overtimePay.toLocaleString('en-IN') }}</p>
+                        </div>
+                        <div class="px-4 py-3.5 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-700">Incentives / Bonus</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">Performance bonus</p>
+                            </div>
+                            <p class="font-black text-green-600 text-base">+₹{{ (payoutData.incentives || 0).toLocaleString('en-IN') }}</p>
+                        </div>
+                        <div class="px-4 py-3 flex justify-between items-center bg-emerald-50">
+                            <p class="font-black text-gray-800">Gross Pay</p>
+                            <p class="font-black text-emerald-700 text-lg">₹{{ grossPay.toLocaleString('en-IN') }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Deductions -->
+                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 bg-gradient-to-r from-red-500 to-rose-500 text-white">
+                        <p class="text-[10px] opacity-80 uppercase font-bold tracking-wider">Deductions</p>
+                        <p class="font-black text-base mt-0.5">✂️ Cuts &amp; Deductions</p>
+                    </div>
+                    <div class="divide-y divide-gray-50 text-sm">
+                        <div class="px-4 py-3.5 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-700">Absent Deduction</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">{{ payoutData.absentDays || 0 }} days × ₹{{ perDayRate }} per day</p>
+                            </div>
+                            <p class="font-black text-red-500 text-base">-₹{{ absentDeduction.toLocaleString('en-IN') }}</p>
+                        </div>
+                        <div class="px-4 py-3.5 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-700">Penalty / Fine</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">Admin applied deduction</p>
+                            </div>
+                            <p class="font-black text-red-500 text-base">-₹{{ (payoutData.deductions || 0).toLocaleString('en-IN') }}</p>
+                        </div>
+                        <div class="px-4 py-3.5 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-700">Advance Taken</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">Already paid in advance</p>
+                            </div>
+                            <p class="font-black text-red-500 text-base">-₹{{ (payoutData.advances || 0).toLocaleString('en-IN') }}</p>
+                        </div>
+                        <div class="px-4 py-3 flex justify-between items-center bg-red-50">
+                            <p class="font-black text-gray-800">Total Deductions</p>
+                            <p class="font-black text-red-600 text-lg">-₹{{ totalDeductions.toLocaleString('en-IN') }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Net In-Hand Salary -->
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white shadow-xl">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-[10px] opacity-50 uppercase font-bold tracking-widest">Net In-Hand Salary</p>
+                            <p class="text-4xl font-black mt-1 text-yellow-400">₹{{ inHandSalary.toLocaleString('en-IN') }}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] opacity-50 uppercase font-bold">{{ selectedPayoutMonthLabel }}</p>
+                            <span :class="payoutData.status === 'paid' ? 'bg-green-400 text-green-900' : 'bg-yellow-400 text-yellow-900'"
+                                class="text-[10px] font-black px-2.5 py-1 rounded-full mt-1 inline-block">
+                                {{ payoutData.status === 'paid' ? '✅ Paid' : '⏳ Pending' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-white/10 grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-white/5 rounded-xl py-2.5">
+                            <p class="text-xs font-black text-emerald-400">₹{{ grossPay.toLocaleString('en-IN') }}</p>
+                            <p class="text-[9px] opacity-40 uppercase mt-0.5">Gross Pay</p>
+                        </div>
+                        <div class="bg-white/5 rounded-xl py-2.5">
+                            <p class="text-xs font-black text-red-400">-₹{{ totalDeductions.toLocaleString('en-IN') }}</p>
+                            <p class="text-[9px] opacity-40 uppercase mt-0.5">Deductions</p>
+                        </div>
+                        <div class="bg-white/5 rounded-xl py-2.5">
+                            <p class="text-xs font-black text-yellow-400">₹{{ inHandSalary.toLocaleString('en-IN') }}</p>
+                            <p class="text-[9px] opacity-40 uppercase mt-0.5">In Hand</p>
+                        </div>
+                    </div>
+                    <div v-if="payoutData.adminNote" class="mt-3 bg-white/10 rounded-xl px-3 py-2 text-[10px] text-white/80">
+                        <i class="fas fa-sticky-note mr-1 text-yellow-300"></i>{{ payoutData.adminNote }}
+                    </div>
+                </div>
+
+                <!-- No Data State -->
+                <div v-if="!payoutData.workingDays && !payoutData.baseSalary" class="text-center py-6 text-gray-400 text-xs bg-white rounded-2xl border">
+                    <i class="fas fa-info-circle text-2xl text-gray-300 mb-2 block"></i>
+                    Is month ka payout admin ne abhi enter nahi kiya hai.<br>Admin se contact karein.
+                </div>
+
+            </template>
+        </main>
+
+        <!-- ==================== EARNINGS SUMMARY TAB ==================== -->
+        <main v-if="activeTab == 'summary'" class="p-4 flex-1 space-y-4 pb-24">
+
+            <!-- Header -->
+            <div class="bg-gradient-to-br from-purple-700 to-indigo-700 rounded-2xl p-5 text-white shadow-xl">
+                <p class="text-[10px] opacity-70 uppercase font-bold tracking-widest">Complete Earnings Overview</p>
+                <p class="text-3xl font-black mt-1">₹{{ (inHandSalary + totalGrossEarnings).toLocaleString('en-IN') }}</p>
+                <p class="text-[11px] opacity-70 mt-1">Salary In-Hand + Delivery Earnings (All Time)</p>
+                <div class="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 gap-3">
+                    <div class="bg-white/10 rounded-xl p-3 text-center">
+                        <p class="text-[9px] opacity-50 uppercase font-bold">💼 {{ selectedPayoutMonthLabel }} Salary</p>
+                        <p class="text-xl font-black text-yellow-300 mt-1">₹{{ inHandSalary.toLocaleString('en-IN') }}</p>
+                        <span :class="payoutData.status === 'paid' ? 'bg-green-400 text-green-900' : 'bg-yellow-400 text-yellow-900'" class="text-[9px] font-black px-2 py-0.5 rounded-full mt-1.5 inline-block">
+                            {{ payoutData.status === 'paid' ? '✅ Paid' : '⏳ Pending' }}
+                        </span>
+                    </div>
+                    <div class="bg-white/10 rounded-xl p-3 text-center">
+                        <p class="text-[9px] opacity-50 uppercase font-bold">🚴 Delivery Earnings</p>
+                        <p class="text-xl font-black text-emerald-300 mt-1">₹{{ totalGrossEarnings.toFixed(0) }}</p>
+                        <p class="text-[9px] opacity-50 mt-1.5">{{ deliveredOrders.length }} deliveries total</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Month Selector for Salary -->
+            <div class="bg-white rounded-2xl border shadow-sm p-4">
+                <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-2"><i class="fas fa-calendar-alt mr-1 text-purple-500"></i>Salary Month</p>
+                <select v-model="selectedPayoutMonth" @change="loadPayoutData" class="w-full border border-gray-200 rounded-xl p-2.5 text-sm font-bold text-gray-700 outline-none focus:border-purple-500 bg-gray-50">
+                    <option v-for="m in payoutMonths" :key="m.value" :value="m.value">{{ m.label }}</option>
+                </select>
+            </div>
+
+            <!-- Salary vs Delivery split -->
+            <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                <div class="px-4 py-3 border-b bg-gray-50">
+                    <p class="text-xs font-black text-gray-700"><i class="fas fa-balance-scale mr-1.5 text-purple-500"></i>Salary vs Delivery Breakdown</p>
+                </div>
+                <div class="divide-y text-sm">
+                    <!-- Salary row -->
+                    <div class="px-4 py-3.5 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 bg-yellow-100 rounded-xl flex items-center justify-center text-base">💼</div>
+                            <div>
+                                <p class="font-bold text-gray-800">Monthly Salary</p>
+                                <p class="text-[10px] text-gray-400">{{ selectedPayoutMonthLabel }} • Base + OT + Bonus − Cuts</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-black text-yellow-600">₹{{ inHandSalary.toLocaleString('en-IN') }}</p>
+                            <span :class="payoutData.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'" class="text-[9px] font-bold px-2 py-0.5 rounded-full">{{ payoutData.status === 'paid' ? '✅ Paid' : '⏳ Pending' }}</span>
+                        </div>
+                    </div>
+                    <!-- Delivery row -->
+                    <div class="px-4 py-3.5 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center text-base">🚴</div>
+                            <div>
+                                <p class="font-bold text-gray-800">Delivery Earnings</p>
+                                <p class="text-[10px] text-gray-400">{{ deliveredOrders.length }} orders × ₹{{ perDeliveryRate }} per order</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-black text-emerald-600">₹{{ totalGrossEarnings.toFixed(0) }}</p>
+                            <p class="text-[9px] text-gray-400">Withdrawn: ₹{{ totalWithdrawn.toFixed(0) }}</p>
+                        </div>
+                    </div>
+                    <!-- Available balance row -->
+                    <div class="px-4 py-3.5 flex justify-between items-center bg-indigo-50">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center text-base">🏦</div>
+                            <div>
+                                <p class="font-bold text-gray-800">Available Balance</p>
+                                <p class="text-[10px] text-gray-400">Withdrawal ke liye available</p>
+                            </div>
+                        </div>
+                        <p class="font-black text-indigo-700">₹{{ totalEarnings.toFixed(0) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Withdrawal History -->
+            <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                <div class="px-4 py-3 border-b bg-gray-50 flex justify-between items-center">
+                    <p class="text-xs font-black text-gray-700"><i class="fas fa-history mr-1.5 text-indigo-500"></i>Withdrawal History</p>
+                    <button @click="showWithdrawModal = true" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl font-bold text-[10px] flex items-center gap-1">
+                        <i class="fas fa-paper-plane text-[9px]"></i> Withdraw
+                    </button>
+                </div>
+                <div v-if="withdrawRequests.length" class="divide-y">
+                    <div v-for="req in withdrawRequests" :key="req.id" class="px-4 py-3 flex justify-between items-center">
+                        <div>
+                            <p class="text-sm font-black text-gray-800">₹{{ req.amount }}</p>
+                            <p class="text-[10px] text-gray-400 mt-0.5"><i class="fas fa-clock mr-1"></i>{{ formatDate(req.requestedAt) }}</p>
+                            <p class="text-[10px] text-gray-400">UPI: {{ req.upiId }}</p>
+                        </div>
+                        <span :class="{
+                            'bg-yellow-100 text-yellow-700': req.status === 'pending',
+                            'bg-green-100 text-green-700': req.status === 'approved',
+                            'bg-red-100 text-red-700': req.status === 'rejected'
+                        }" class="px-2.5 py-1 rounded-full text-[10px] font-bold capitalize flex items-center gap-1">
+                            <i :class="{
+                                'fas fa-clock': req.status === 'pending',
+                                'fas fa-check-circle': req.status === 'approved',
+                                'fas fa-times-circle': req.status === 'rejected'
+                            }"></i>{{ req.status }}
+                        </span>
+                    </div>
+                </div>
+                <div v-else class="py-6 text-center text-[11px] text-gray-400">
+                    <i class="fas fa-inbox text-2xl text-gray-200 mb-2 block"></i>
+                    Koi withdrawal request nahi abhi tak
+                </div>
+            </div>
+
+            <!-- Salary Detail (this month) -->
+            <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                <div class="px-4 py-3 border-b bg-gray-50">
+                    <p class="text-xs font-black text-gray-700"><i class="fas fa-file-invoice-dollar mr-1.5 text-yellow-500"></i>{{ selectedPayoutMonthLabel }} Salary Detail</p>
+                </div>
+                <div v-if="payoutData.baseSalary || payoutData.workingDays" class="divide-y text-xs">
+                    <div class="px-4 py-2.5 flex justify-between text-gray-600"><span>Base Salary</span><span class="font-bold text-gray-800">₹{{ (payoutData.baseSalary || 0).toLocaleString('en-IN') }}</span></div>
+                    <div class="px-4 py-2.5 flex justify-between text-gray-600"><span>Overtime ({{ payoutData.overtimeHours || 0 }} hrs)</span><span class="font-bold text-emerald-600">+₹{{ overtimePay.toLocaleString('en-IN') }}</span></div>
+                    <div class="px-4 py-2.5 flex justify-between text-gray-600"><span>Incentives</span><span class="font-bold text-emerald-600">+₹{{ (payoutData.incentives || 0).toLocaleString('en-IN') }}</span></div>
+                    <div class="px-4 py-2.5 flex justify-between text-gray-600"><span>Deductions</span><span class="font-bold text-red-500">-₹{{ totalDeductions.toLocaleString('en-IN') }}</span></div>
+                    <div class="px-4 py-2.5 flex justify-between bg-yellow-50"><span class="font-black text-gray-800">Net In-Hand</span><span class="font-black text-yellow-600 text-sm">₹{{ inHandSalary.toLocaleString('en-IN') }}</span></div>
+                </div>
+                <div v-else class="py-5 text-center text-[11px] text-gray-400">
+                    <i class="fas fa-info-circle text-xl text-gray-200 mb-1.5 block"></i>
+                    Is month ka payout admin ne enter nahi kiya
+                </div>
+            </div>
+
+        </main>
 
     </template>
 </div>
@@ -426,6 +913,7 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
+const storage = firebase.storage();
 const auth = firebase.auth();
 
 new Vue({
@@ -437,11 +925,23 @@ new Vue({
         loginError: '',
         showLoginPassword: false,
         activeTab: 'orders',
+        
         orders: [],
         orderSearch: '',
         orderStatusFilter: 'all',
+        
         perDeliveryRate: 40,
         riderBalance: 0,
+        
+        showScanner: false,
+        html5QrCode: null,
+        scanMode: 'order',
+        scanResult: null,
+        scannedProduct: null,
+        
+        showInvoiceModal: false,
+        currentInvoiceOrder: null,
+        
         cameraActive: false,
         currentOrderForPhoto: null,
         stream: null,
@@ -451,6 +951,8 @@ new Vue({
         withdrawUPI: '',
         withdrawLoading: false,
         withdrawRequests: [],
+        storeRooms: [],
+
         selectedPayoutMonth: '',
         payoutData: {},
         payoutLoading: false
@@ -459,35 +961,60 @@ new Vue({
         filteredOrders() {
             let filtered = this.orders;
             if (this.orderStatusFilter !== 'all') {
-                filtered = filtered.filter(o => o.status === this.orderStatusFilter);
+                if (this.orderStatusFilter === 'cancelled') {
+                    filtered = filtered.filter(o => o.status === 'cancelled' || o.status === 'rejected');
+                } else {
+                    filtered = filtered.filter(o => o.status === this.orderStatusFilter);
+                }
             }
             if (this.orderSearch) {
                 const q = this.orderSearch.toLowerCase();
                 filtered = filtered.filter(o => 
                     this.getShortId(o.id).toLowerCase().includes(q) ||
-                    (o.customerName && o.customerName.toLowerCase().includes(q))
+                    (o.customerName && o.customerName.toLowerCase().includes(q)) ||
+                    (o.customerPhone && o.customerPhone.includes(q)) ||
+                    (o.items && o.items.some(i => i.name && i.name.toLowerCase().includes(q)))
                 );
             }
             return filtered;
         },
         deliveredOrders() {
-            return this.orders.filter(o => o.status === 'delivered');
+            return this.orders.filter(o =>
+                o.status === 'delivered' && (
+                    o.assignedRider === this.loggedInRider?.id ||
+                    o.assignedRiderPhone === this.loggedInRider?.phone ||
+                    (o.deliveryBoyDetails && o.deliveryBoyDetails.phone === this.loggedInRider?.phone)
+                )
+            );
+        },
+        recentDeliveredOrders() {
+            return [...this.deliveredOrders].reverse().slice(0, 20);
         },
         totalWithdrawn() {
-            return this.withdrawRequests.filter(r => r.status === 'approved').reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+            // Sirf approved transactions ko alag count karenge
+            return this.withdrawRequests
+                .filter(r => r.status === 'approved')
+                .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
         },
         totalPending() {
-            return this.withdrawRequests.filter(r => r.status === 'pending').reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+            // Sirf pending transactions jo admin approval me hain
+            return this.withdrawRequests
+                .filter(r => r.status === 'pending' || !r.status)
+                .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
         },
         totalGrossEarnings() {
             return this.deliveredOrders.length * this.perDeliveryRate;
         },
         totalEarnings() {
+            // ✅ WALLET FIX: Firebase riders/{id}/balance se live balance lena — order count se calculate nahi
             return Math.max(0, this.riderBalance);
         },
         todayDeliveredCount() {
             const today = new Date().toDateString();
             return this.deliveredOrders.filter(o => o.deliveredAt && new Date(o.deliveredAt).toDateString() === today).length;
+        },
+        todayEarnings() {
+            return this.todayDeliveredCount * this.perDeliveryRate;
         },
         payoutMonths() {
             const months = [];
@@ -504,155 +1031,557 @@ new Vue({
             const m = this.payoutMonths.find(m => m.value === this.selectedPayoutMonth);
             return m ? m.label : '';
         },
-        overtimePay() { return (this.payoutData.overtimeHours || 0) * (this.payoutData.overtimeRate || 0); },
-        grossPay() { return (this.payoutData.baseSalary || 0) + this.overtimePay + (this.payoutData.incentives || 0); },
+        monthDeliveryCount() {
+            if (!this.selectedPayoutMonth) return 0;
+            const [yr, mo] = this.selectedPayoutMonth.split('-').map(Number);
+            return this.deliveredOrders.filter(o => {
+                const d = new Date(o.deliveredAt || o.date || 0);
+                return d.getFullYear() === yr && (d.getMonth() + 1) === mo;
+            }).length;
+        },
+        monthDeliveryEarnings() { return this.monthDeliveryCount * this.perDeliveryRate; },
+        overtimePay() {
+            return (this.payoutData.overtimeHours || 0) * (this.payoutData.overtimeRate || 0);
+        },
+        grossPay() {
+            return (this.payoutData.baseSalary || 0) + this.overtimePay + (this.payoutData.incentives || 0);
+        },
         perDayRate() {
             if (!this.payoutData.baseSalary || !this.payoutData.workingDays) return 0;
             return Math.round(this.payoutData.baseSalary / this.payoutData.workingDays);
         },
-        absentDeduction() { return this.perDayRate * (this.payoutData.absentDays || 0); },
-        totalDeductions() { return this.absentDeduction + (this.payoutData.deductions || 0) + (this.payoutData.advances || 0); },
+        absentDeduction() {
+            return this.perDayRate * (this.payoutData.absentDays || 0);
+        },
+        totalDeductions() {
+            return this.absentDeduction + (this.payoutData.deductions || 0) + (this.payoutData.advances || 0);
+        },
         inHandSalary() { return Math.max(0, this.grossPay - this.totalDeductions); }
     },
     methods: {
         getShortId(fullId) { return fullId ? fullId.slice(-8).toUpperCase() : ''; },
         formatDate(date) { return date ? new Date(date).toLocaleString('hi-IN') : ''; },
         showToast(msg) { const t = document.getElementById('toast'); document.getElementById('toastMsg').innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); },
-        getStatusText(s) { const m = { pending: '⏳ Pending', confirmed: '✅ Confirmed', shipped: '🚚 Shipped', delivered: '🏠 Delivered' }; return m[s] || s; },
-        getStatusBadgeClass(s) { const c = { pending: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-blue-100 text-blue-700', shipped: 'bg-purple-100 text-purple-700', delivered: 'bg-green-100 text-green-700' }; return c[s] || ''; },
-        getBorderClass(s) { const c = { pending: 'border-t-yellow-400', confirmed: 'border-t-blue-400', shipped: 'border-t-purple-400', delivered: 'border-t-green-400' }; return c[s] || ''; },
+        getStatusText(s) { const m = { pending: '⏳ Pending', confirmed: '✅ Confirmed', shipped: '🚚 Shipped', delivered: '🏠 Delivered', cancelled: '❌ Cancelled', rejected: '❌ Rejected' }; return m[s] || s; },
+        getStatusBadgeClass(s) { const c = { pending: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-blue-100 text-blue-700', shipped: 'bg-purple-100 text-purple-700', delivered: 'bg-green-100 text-green-700', cancelled: 'bg-red-100 text-red-700', rejected: 'bg-red-100 text-red-700' }; return c[s] || ''; },
+        getBorderClass(s) { const c = { pending: 'border-t-yellow-400', confirmed: 'border-t-blue-400', shipped: 'border-t-purple-400', delivered: 'border-t-green-400', cancelled: 'border-t-red-400', rejected: 'border-t-red-400' }; return c[s] || ''; },
         
         initRiderPanel() {
             const now = new Date();
             this.selectedPayoutMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
             this.loadOrders();
+            this.loadShopkeepers();
             this.loadPerDeliveryRate();
             this.loadWithdrawRequests();
             this.loadRiderBalance();
+            
+            // Firebase single unique reference listeners attach
+            database.ref('orders').off(); // Pehle se chal rahe duplicate listener ko band karne ke liye
             database.ref('orders').on('value', () => this.loadOrders());
         },
+
         async handleRiderLogin() {
-            if (!this.loginForm.email || !this.loginForm.password) { this.loginError = 'Email aur password dalein'; return; }
+            if (!this.loginForm.email || !this.loginForm.password) {
+                this.loginError = 'Email aur password dono zaroori hain';
+                return;
+            }
+            this.loginError = '';
             this.authLoading = true;
+
             try {
-                await auth.signInWithEmailAndPassword(this.loginForm.email.trim(), this.loginForm.password);
+                // Pehle Firebase Auth se login karo (email+password) — Firebase rules satisfy hongi
+                let userCredential;
+                try {
+                    userCredential = await auth.signInWithEmailAndPassword(
+                        this.loginForm.email.trim(),
+                        this.loginForm.password
+                    );
+                } catch(authErr) {
+                    // Firebase Auth fail hua — anonymous se try karo (sirf DB check ke liye)
+                    try {
+                        await auth.signInAnonymously();
+                    } catch(anonErr) {
+                        // Anonymous bhi fail — do nothing, try karte hain
+                    }
+                }
+
+                // Ab riders database se check karo
                 const snap = await database.ref('riders').once('value');
                 let matched = null;
                 snap.forEach(c => {
                     const v = c.val();
-                    if (v.email && v.email.toLowerCase().trim() === this.loginForm.email.toLowerCase().trim()) {
+                    const emailMatch = v.email && v.email.toLowerCase().trim() === this.loginForm.email.toLowerCase().trim();
+                    const passMatch = v.password && v.password === this.loginForm.password;
+                    if (emailMatch && passMatch) {
                         matched = { id: c.key, name: v.name, phone: v.phone || '', email: v.email };
                     }
                 });
+
                 this.authLoading = false;
                 if (matched) {
                     this.loggedInRider = matched;
                     localStorage.setItem('sw_rider_session', JSON.stringify(matched));
                     this.initRiderPanel();
-                } else { this.loginError = 'Rider details match nahi hui!'; }
-            } catch(e) { this.authLoading = false; this.loginError = e.message; }
+                } else {
+                    // Galat credentials — sign out karo
+                    auth.signOut().catch(() => {});
+                    this.loginError = 'Email ya Password galat hai! Admin se check karein.';
+                }
+            } catch(e) {
+                this.authLoading = false;
+                this.loginError = 'Login error: ' + e.message;
+            }
         },
+        
+        async loadShopkeepers() {
+            const snap = await database.ref('shopkeepers').once('value');
+            const d = snap.val();
+            this.storeRooms = d ? Object.keys(d).map(k => ({ id: k, ...d[k] })) : [];
+        },
+
+        getSellerForItem(item) {
+            const resolveStore = (val) => {
+                if (!val) return null;
+                const s = this.storeRooms.find(s => s.shopName === val || s.id === val || s.mobile === val);
+                return s ? s.shopName : val;
+            };
+            if (item.shopkeeperName) return resolveStore(item.shopkeeperName) || item.shopkeeperName;
+            if (item.shopkeeperId) return resolveStore(item.shopkeeperId) || item.shopkeeperId;
+            if (item.shopkeeper && item.shopkeeper !== 'Admin Core') return resolveStore(item.shopkeeper) || item.shopkeeper;
+            return 'Admin';
+        },
+
         async loadOrders() {
             if (!this.loggedInRider) return;
             const snap = await database.ref('orders').once('value');
             const data = snap.val();
             const allOrders = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
-            this.orders = allOrders.filter(o => o.assignedRider === this.loggedInRider.id || o.assignedRiderPhone === this.loggedInRider.phone).reverse();
+
+            this.orders = allOrders.filter(o => {
+                const isAssignedToMe =
+                    o.assignedRider === this.loggedInRider.id ||
+                    o.assignedRiderPhone === this.loggedInRider.phone ||
+                    (o.deliveryBoyDetails && o.deliveryBoyDetails.phone === this.loggedInRider.phone);
+
+                const isNewUnassigned =
+                    !o.assignedRider && !o.assignedRiderPhone &&
+                    (o.status === 'pending' || o.status === 'confirmed');
+
+                const isCancelledRelatedToMe =
+                    (o.status === 'cancelled' || o.status === 'rejected') && (
+                        o.cancelledBy === 'rider' ||
+                        o.assignedRider === this.loggedInRider.id ||
+                        o.assignedRiderPhone === this.loggedInRider.phone ||
+                        (o.deliveryBoyDetails && o.deliveryBoyDetails.phone === this.loggedInRider.phone)
+                    );
+
+                return isAssignedToMe || isNewUnassigned || isCancelledRelatedToMe;
+            }).reverse();
         },
+        
         loadPerDeliveryRate() {
-            database.ref('admin_settings/per_delivery_rate').on('value', snap => { if (snap.exists()) this.perDeliveryRate = snap.val(); });
+            database.ref('admin_settings/per_delivery_rate').off();
+            database.ref('admin_settings/per_delivery_rate').on('value', snap => {
+                if (snap.exists()) this.perDeliveryRate = snap.val();
+            });
         },
-        loadWithdrawRequests() {
+
+        async loadWithdrawRequests() {
             if (!this.loggedInRider) return;
+            database.ref('withdrawal_requests').orderByChild('riderId').equalTo(this.loggedInRider.id).off();
             database.ref('withdrawal_requests').orderByChild('riderId').equalTo(this.loggedInRider.id).on('value', snap => {
                 const d = snap.val();
                 this.withdrawRequests = d ? Object.keys(d).map(k => ({ id: k, ...d[k] })).reverse() : [];
             });
         },
+
         loadRiderBalance() {
             if (!this.loggedInRider) return;
-            database.ref(`riders/${this.loggedInRider.id}/balance`).on('value', snap => { this.riderBalance = snap.exists() ? Number(snap.val()) : 0; });
+            const balRef = database.ref(`riders/${this.loggedInRider.id}/balance`);
+            balRef.off();
+            balRef.on('value', snap => {
+                this.riderBalance = snap.exists() ? Number(snap.val()) : 0;
+            });
         },
+
         async submitWithdrawRequest() {
-            if (!this.withdrawAmount || parseFloat(this.withdrawAmount) <= 0) { this.showToast('Amount valid dalein'); return; }
-            if (parseFloat(this.withdrawAmount) > this.riderBalance) { this.showToast('Balance kam hai'); return; }
+            if (!this.withdrawAmount || parseFloat(this.withdrawAmount) <= 0) { this.showToast('Valid amount enter karein'); return; }
+            if (!this.withdrawUPI.trim()) { this.showToast('UPI ID required hai'); return; }
+            if (parseFloat(this.withdrawAmount) > this.riderBalance) { this.showToast('Amount available balance se zyada hai'); return; }
             this.withdrawLoading = true;
             const amt = parseFloat(this.withdrawAmount);
             try {
-                await database.ref(`riders/${this.loggedInRider.id}/balance`).transaction(cur => Math.max(0, (Number(cur) || 0) - amt));
+                // ✅ WALLET FIX: Pehle Firebase balance se turant deduct karo
+                const balRef = database.ref(`riders/${this.loggedInRider.id}/balance`);
+                await balRef.transaction(cur => Math.max(0, (Number(cur) || 0) - amt));
+
+                // Phir withdrawal request record karo
                 await database.ref('withdrawal_requests').push({
-                    riderId: this.loggedInRider.id, riderName: this.loggedInRider.name, riderPhone: this.loggedInRider.phone,
-                    amount: amt, upiId: this.withdrawUPI.trim(), status: 'pending', requestedAt: new Date().toISOString()
+                    riderId: this.loggedInRider.id,
+                    riderName: this.loggedInRider.name,
+                    riderPhone: this.loggedInRider.phone,
+                    amount: amt,
+                    upiId: this.withdrawUPI.trim(),
+                    status: 'pending',
+                    requestedAt: new Date().toISOString()
                 });
-                this.showToast('✅ Request sent successfully!');
+                this.showToast('✅ Withdraw request bhej diya! Balance turant cut ho gaya.');
                 this.showWithdrawModal = false;
                 this.withdrawAmount = '';
-            } catch(e) { this.showToast(e.message); }
+                this.withdrawUPI = '';
+            } catch(e) { this.showToast('Error: ' + e.message); }
             finally { this.withdrawLoading = false; }
         },
+        
         async mutateOrderStatus(order) {
-            if (order.status === 'delivered' && !order.deliveryPhoto) {
-                this.showToast('📸 Photo mandatory hai execution ke liye!');
+            if (order.status === 'cancelled') return;
+            if (order.paymentMethod === "ONLINE" && !order.paymentApprovedByAdmin) {
+                this.showToast("🔒 Admin ne abhi payment approve nahi ki. Thoda wait karein.");
                 return;
             }
-            const now = new Date().toISOString();
-            const payload = { status: order.status, riderTimestamp: now };
-            if (order.status === 'delivered') payload.deliveredAt = now;
-            await database.ref(`orders/${order.id}`).update(payload);
-            if (order.status === 'delivered' && !order.earningCredited) {
-                await database.ref(`riders/${this.loggedInRider.id}/balance`).transaction(cur => (Number(cur) || 0) + this.perDeliveryRate);
-                await database.ref(`orders/${order.id}`).update({ earningCredited: true });
+            if (order.status === 'delivered' && !order.deliveryPhoto) {
+                this.showToast('📸 Photo lena zaroori hai! Camera khul raha hai...');
+                order.status = 'shipped';
+                await this.$nextTick();
+                order.status = 'delivered';
+                setTimeout(() => this.openCameraForOrder(order), 600);
+                return;
             }
-            this.showToast('Status dynamically updated!');
-        },
-        async openCameraForOrder(order) {
-            this.currentOrderForPhoto = order; this.cameraActive = true;
-            this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-            this.$refs.video.srcObject = this.stream;
-        },
-        async capturePhoto() {
-            this.photoUploading = true;
-            const canvas = this.$refs.canvas;
-            canvas.width = this.$refs.video.videoWidth; canvas.height = this.$refs.video.videoHeight;
-            canvas.getContext('2d').drawImage(this.$refs.video, 0, 0);
-            const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-            
-            const fd = new FormData(); fd.append('key', '9b6ea4121e0281d6911d13eaf8d59c86'); fd.append('image', base64);
-            const res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
-            const result = await res.json();
-            
-            if (result.success) {
+            try {
                 const now = new Date().toISOString();
-                await database.ref(`orders/${this.currentOrderForPhoto.id}`).update({
-                    deliveryPhoto: result.data.url, status: 'delivered', deliveredAt: now
-                });
-                if (!this.currentOrderForPhoto.earningCredited) {
-                    await database.ref(`riders/${this.loggedInRider.id}/balance`).transaction(cur => (Number(cur) || 0) + this.perDeliveryRate);
-                    await database.ref(`orders/${this.currentOrderForPhoto.id}`).update({ earningCredited: true });
+                const payload = { 
+                    status: order.status, 
+                    riderTimestamp: now,
+                    assignedRider: this.loggedInRider.id,
+                    assignedRiderName: this.loggedInRider.name,
+                    assignedRiderPhone: this.loggedInRider.phone
+                };
+                if (order.status === 'shipped') payload.shippedAt = now;
+                if (order.status === 'delivered') {
+                    payload.deliveredAt = now;
+                    payload.deliveryBoyDetails = { riderId: this.loggedInRider.id, name: this.loggedInRider.name, phone: this.loggedInRider.phone };
                 }
-                this.showToast('✅ Photo saved & Order Delivered!');
-                this.closeCamera();
-            }
-            this.photoUploading = false;
+                await database.ref(`orders/${order.id}`).update(payload);
+
+                // ✅ WALLET FIX: Rider earning credit — sirf ek baar (earningCredited flag check)
+                if (order.status === 'delivered' && !order.earningCredited) {
+                    try {
+                        const balRef = database.ref(`riders/${this.loggedInRider.id}/balance`);
+                        await balRef.transaction(cur => (Number(cur) || 0) + this.perDeliveryRate);
+                        await database.ref(`orders/${order.id}`).update({ earningCredited: true });
+                    } catch(we) { /* balance credit silently fail, order status already saved */ }
+                }
+
+                // ✅ Cashback credit karo jab delivered ho (Admin wali same logic)
+                if (order.status === 'delivered' && !order.cashbackCredited) {
+                    try {
+                        let earnAmt = Number(order.totalCashbackEarnable || 0);
+
+                        // Fallback 1: items se calculate karo
+                        if (earnAmt === 0 && order.items && order.items.length) {
+                            earnAmt = order.items.reduce((s, it) => s + Number(it.cashback || 0) * Number(it.quantity || 1), 0);
+                        }
+
+                        // Fallback 2: Firebase products se lookup karo
+                        if (earnAmt === 0 && order.items && order.items.length) {
+                            const productSnaps = await Promise.all(
+                                order.items.map(it => database.ref('products/' + it.id).once('value'))
+                            );
+                            earnAmt = productSnaps.reduce((s, snap, i) => {
+                                const cb = snap.exists() ? Number(snap.val().cashback || 0) : 0;
+                                return s + cb * Number(order.items[i].quantity || 1);
+                            }, 0);
+                        }
+
+                        if (earnAmt > 0) {
+                            const phone = order.customerPhone;
+                            const uid = order.uid; // ✅ 'uid' hai, 'userUid' nahi
+
+                            let cashbackPath = null;
+                            if (phone) {
+                                const profileSnap = await database.ref(`users/${phone}`).once('value');
+                                if (profileSnap.exists()) cashbackPath = `users/${phone}/cashback`;
+                            }
+                            if (!cashbackPath && uid) cashbackPath = `users_email/${uid}/cashback`;
+                            if (!cashbackPath && phone) cashbackPath = `users/${phone}/cashback`;
+
+                            if (cashbackPath) {
+                                const curSnap = await database.ref(cashbackPath).once('value');
+                                const newBal = Number(curSnap.val() || 0) + earnAmt;
+                                await database.ref(cashbackPath).set(newBal);
+                                await database.ref(`orders/${order.id}`).update({ cashbackCredited: true, totalCashbackEarnable: earnAmt });
+                                this.showToast(`✅ Delivered! ₹${earnAmt.toFixed(2)} Cashback wallet me add ho gaya!`);
+                            } else {
+                                this.showToast(`✅ Status: ${this.getStatusText(order.status)}`);
+                            }
+                        } else {
+                            this.showToast(`✅ Status: ${this.getStatusText(order.status)}`);
+                        }
+                    } catch(ce) {
+                        this.showToast(`✅ Status: ${this.getStatusText(order.status)}`);
+                    }
+                } else {
+                    this.showToast(`✅ Status: ${this.getStatusText(order.status)}`);
+                }
+            } catch(e) { this.showToast('Error: ' + e.message); }
         },
-        closeCamera() { if (this.stream) this.stream.getTracks().forEach(t => t.stop()); this.cameraActive = false; },
+        
+        async openCameraForOrder(order) {
+            this.currentOrderForPhoto = order;
+            this.cameraActive = true;
+            await this.$nextTick();
+            try {
+                this.stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                const video = this.$refs.video;
+                if (video) {
+                    video.srcObject = this.stream;
+                    await video.play().catch(() => {});
+                }
+            } catch(e) {
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    const video = this.$refs.video;
+                    if (video) { video.srcObject = this.stream; await video.play().catch(() => {}); }
+                } catch(e2) { this.showToast('Camera access denied: ' + e2.message); this.cameraActive = false; }
+            }
+        },
+        
+        async capturePhoto() {
+            const video = this.$refs.video;
+            const canvas = this.$refs.canvas;
+            if (!video || !canvas || !this.currentOrderForPhoto) return;
+            if (this.photoUploading) return;
+            
+            const w = video.videoWidth || 640;
+            const h = video.videoHeight || 480;
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+            
+            const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+            if (!base64) { this.showToast('Photo capture failed, try again'); return; }
+            
+            this.photoUploading = true;
+            try {
+                const fd = new FormData();
+                fd.append('key', '9b6ea4121e0281d6911d13eaf8d59c86');
+                fd.append('image', base64);
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+                let res;
+                try {
+                    res = await fetch('https://api.imgbb.com/1/upload', {
+                        method: 'POST',
+                        body: fd,
+                        signal: controller.signal
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+
+                const result = await res.json();
+                if (result.success) {
+                    const order = this.currentOrderForPhoto;
+                    const now = new Date().toISOString();
+
+                    // Photo + status delivered ek saath save karo
+                    await database.ref(`orders/${order.id}`).update({
+                        deliveryPhoto: result.data.url,
+                        deliveryPhotoTime: now,
+                        status: 'delivered',
+                        deliveredAt: now,
+                        riderTimestamp: now,
+                        assignedRider: this.loggedInRider.id,
+                        assignedRiderName: this.loggedInRider.name,
+                        assignedRiderPhone: this.loggedInRider.phone,
+                        deliveryBoyDetails: { riderId: this.loggedInRider.id, name: this.loggedInRider.name, phone: this.loggedInRider.phone }
+                    });
+
+                    // ✅ WALLET FIX: Rider earning credit via photo delivery (earningCredited flag check)
+                    if (!order.earningCredited) {
+                        try {
+                            const balRef = database.ref(`riders/${this.loggedInRider.id}/balance`);
+                            await balRef.transaction(cur => (Number(cur) || 0) + this.perDeliveryRate);
+                            await database.ref(`orders/${order.id}`).update({ earningCredited: true });
+                        } catch(we) { /* silent — photo already saved */ }
+                    }
+
+                    // ✅ Cashback credit karo (Admin wali same logic)
+                    if (!order.cashbackCredited) {
+                        try {
+                            let earnAmt = Number(order.totalCashbackEarnable || 0);
+
+                            // Fallback 1: items ke andar cashback field se calculate karo
+                            if (earnAmt === 0 && order.items && order.items.length) {
+                                earnAmt = order.items.reduce((s, it) => s + Number(it.cashback || 0) * Number(it.quantity || 1), 0);
+                            }
+
+                            // Fallback 2: Firebase se products ki cashback lookup karo
+                            if (earnAmt === 0 && order.items && order.items.length) {
+                                const productSnaps = await Promise.all(
+                                    order.items.map(it => database.ref('products/' + it.id).once('value'))
+                                );
+                                earnAmt = productSnaps.reduce((s, snap, i) => {
+                                    const cb = snap.exists() ? Number(snap.val().cashback || 0) : 0;
+                                    return s + cb * Number(order.items[i].quantity || 1);
+                                }, 0);
+                            }
+
+                            if (earnAmt > 0) {
+                                const phone = order.customerPhone;
+                                const uid = order.uid; // ✅ 'uid' hai, 'userUid' nahi
+
+                                // Phone user check karo pehle
+                                let cashbackPath = null;
+                                if (phone) {
+                                    const profileSnap = await database.ref(`users/${phone}`).once('value');
+                                    if (profileSnap.exists()) cashbackPath = `users/${phone}/cashback`;
+                                }
+                                // Email user fallback
+                                if (!cashbackPath && uid) cashbackPath = `users_email/${uid}/cashback`;
+                                // Last fallback: phone path
+                                if (!cashbackPath && phone) cashbackPath = `users/${phone}/cashback`;
+
+                                if (cashbackPath) {
+                                    const curSnap = await database.ref(cashbackPath).once('value');
+                                    const newBal = Number(curSnap.val() || 0) + earnAmt;
+                                    await database.ref(cashbackPath).set(newBal);
+                                    await database.ref(`orders/${order.id}`).update({ cashbackCredited: true, totalCashbackEarnable: earnAmt });
+                                    this.showToast(`✅ Delivered! ₹${earnAmt.toFixed(2)} Cashback customer wallet me add ho gaya!`);
+                                } else {
+                                    this.showToast('✅ Delivered aur photo save ho gaya!');
+                                }
+                            } else {
+                                this.showToast('✅ Delivered aur photo save ho gaya!');
+                            }
+                        } catch(ce) {
+                            this.showToast('✅ Delivered! (Cashback error: ' + ce.message + ')');
+                        }
+                    } else {
+                        this.showToast('✅ Delivered aur photo save ho gaya!');
+                    }
+
+                    this.closeCamera();
+                    await this.loadOrders();
+                } else {
+                    this.showToast('Upload failed: ' + (result.error && result.error.message || 'Try again'));
+                }
+            } catch(e) {
+                this.showToast('Upload error: ' + e.message);
+            } finally {
+                this.photoUploading = false;
+            }
+        },
+        
+        closeCamera() {
+            if (this.stream) {
+                this.stream.getTracks().forEach(track => track.stop());
+                this.stream = null;
+            }
+            this.cameraActive = false;
+            this.currentOrderForPhoto = null;
+        },
+        
+        async openQRScanner() {
+            this.showScanner = true;
+            this.scanResult = null;
+            this.scannedProduct = null;
+            await this.$nextTick();
+            if (this.html5QrCode) try { await this.html5QrCode.stop(); } catch(e) {}
+            this.html5QrCode = new Html5Qrcode("qr-reader");
+            try {
+                await this.html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 240, height: 240 } },
+                    (decoded) => {
+                        this.handleOrderScan(decoded);
+                    }, () => {});
+            } catch(e) { this.showToast('Camera access denied'); }
+        },
+
+        handleOrderScan(decoded) {
+            let shortId = null;
+            if (decoded.includes('ORDER:')) shortId = decoded.split('ORDER:')[1].split('|')[0];
+            else shortId = decoded.slice(-8).toUpperCase();
+            const matched = this.orders.find(o => this.getShortId(o.id) === shortId);
+            if (matched) {
+                this.scanResult = { success: true, message: `✅ Order #${shortId} mila!` };
+                this.closeScanner();
+                setTimeout(() => {
+                    this.orderSearch = shortId;
+                    this.orderStatusFilter = 'all';
+                    this.activeTab = 'orders';
+                }, 400);
+            } else {
+                this.scanResult = { success: false, message: `❌ Order #${shortId} nahi mila` };
+                this.showToast('Order not found');
+            }
+        },
+
+        closeScanner() {
+            if (this.html5QrCode) {
+                this.html5QrCode.stop().catch(() => {});
+            }
+            this.showScanner = false;
+        },
+
+        printInvoice(order) {
+            this.currentInvoiceOrder = order;
+            this.showInvoiceModal = true;
+        },
+
+        printInvoicePage() { window.print(); },
+        closeInvoiceModal() { this.showInvoiceModal = false; this.currentInvoiceOrder = null; },
+
+        cancelOrder(order) {
+            const reason = prompt('Cancel reason:');
+            if (reason) {
+                database.ref(`orders/${order.id}`).update({
+                    status: 'cancelled',
+                    cancelReason: reason,
+                    cancelledBy: 'rider',
+                    cancelledByName: this.loggedInRider.name
+                }).then(() => {
+                    this.showToast('Order cancelled');
+                }).catch(e => this.showToast('Error: ' + e.message));
+            }
+        },
+
         async loadPayoutData() {
             if (!this.loggedInRider || !this.selectedPayoutMonth) return;
             this.payoutLoading = true;
-            const snap = await database.ref(`riders/${this.loggedInRider.id}/payouts/${this.selectedPayoutMonth}`).once('value');
-            this.payoutData = snap.exists() ? snap.val() : {};
-            this.payoutLoading = false;
+            try {
+                const snap = await database.ref(`riders/${this.loggedInRider.id}/payouts/${this.selectedPayoutMonth}`).once('value');
+                this.payoutData = snap.exists() ? snap.val() : {};
+            } catch(e) { this.payoutData = {}; }
+            finally { this.payoutLoading = false; }
         },
+
         handleRiderLogout() {
             auth.signOut().then(() => {
+                database.ref('orders').off();
+                database.ref('admin_settings/per_delivery_rate').off();
+                database.ref('withdrawal_requests').off();
+                if (this.loggedInRider) {
+                    database.ref(`riders/${this.loggedInRider.id}/balance`).off();
+                }
+                this.loggedInRider = null;
+                this.riderBalance = 0;
                 localStorage.removeItem('sw_rider_session');
-                location.reload();
+                this.loginForm = { email: '', password: '' };
+                this.orders = [];
             });
         }
     },
     mounted() {
         const saved = localStorage.getItem('sw_rider_session');
-        if (saved) { this.loggedInRider = JSON.parse(saved); this.initRiderPanel(); }
+        if (saved) {
+            this.loggedInRider = JSON.parse(saved);
+            this.initRiderPanel();
+        }
     }
 });
 </script>
