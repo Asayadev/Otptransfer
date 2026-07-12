@@ -977,12 +977,20 @@ new Vue({
             return this.todayDeliveredCount * this.perDeliveryRate;
         },
         payoutMonths() {
+            // Hardcoded month names avoid locale/ICU issues on some mobile
+            // browsers where toLocaleString({month:'long'}) silently fails
+            // and returns an unexpected/mixed-looking format.
+            const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
             const months = [];
             const now = new Date();
+            const curY = now.getFullYear();
+            const curM = now.getMonth(); // 0-indexed
             for (let i = 0; i < 12; i++) {
-                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-                const label = d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+                let mo = curM - i;
+                let yr = curY;
+                while (mo < 0) { mo += 12; yr -= 1; }
+                const val = `${yr}-${String(mo+1).padStart(2,'0')}`;
+                const label = `${monthNames[mo]} ${yr}`;
                 months.push({ value: val, label });
             }
             return months;
