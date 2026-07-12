@@ -1,274 +1,660 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Growthxpress Instant Money Transfer</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Pinkkart - Delivery Boy Panel</title>
+    <script src="tailwind.js"></script>
+    <link href="inter.css" rel="stylesheet">
+    <link rel="stylesheet" href="all.min.css">
+
+    <script src="firebase-app-compat.js"></script>
+    <script src="firebase-database-compat.js"></script>
+    <script src="firebase-storage-compat.js"></script>
+    <script src="firebase-auth-compat.js"></script>
+    <script src="html5-qrcode.min.js"></script>
+    <script src="vue.js"></script>
+    <script src="qrcode.min.js"></script>
+
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: '-apple-system', BlinkMacSystemFont, sans-serif; }
-        body { background-color: #f4f6f9; padding: 15px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .transfer-card { width: 100%; max-width: 420px; background: #ffffff; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border-top: 5px solid #1e88e5; }
-        .app-title { text-align: center; margin-bottom: 25px; }
-        .app-title h2 { color: #1e88e5; font-size: 22px; }
-        .app-title p { color: #757575; font-size: 11px; text-transform: uppercase; margin-top:3px; }
-        
-        .sender-profile-box { background: #e3f2fd; border: 1px solid #bbdefb; padding: 12px; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
-        .sender-profile-box .name { font-weight: 700; color: #0d47a1; }
-        .sender-profile-box .bal { font-weight: 800; color: #2e7d32; }
-
-        .input-block { margin-bottom: 18px; }
-        .input-block label { display: block; font-size: 13px; font-weight: 600; color: #424242; margin-bottom: 8px; }
-        input[type="text"], input[type="number"], input[type="password"] { width: 100%; padding: 14px; border: 1px solid #cfd8dc; border-radius: 12px; font-size: 16px; background: #fafafa; outline: none; }
-        input:focus { border-color: #1e88e5; background: #fff; }
-        
-        .btn-action { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; }
-        .btn-verify { background-color: #ff9800; margin-top: 5px; }
-        .btn-send { background-color: #1e88e5; margin-top: 10px; }
-        .btn-send:disabled { background-color: #b0bec5; cursor: not-allowed; }
-
-        #receiverStatus { font-weight: bold; font-size: 14px; margin-top: 8px; display: block; text-align: center; padding: 8px; border-radius: 8px; }
-        
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 999; justify-content: center; align-items: center; padding: 20px; }
-        .modal-card { background: white; padding: 30px; border-radius: 24px; text-align: center; width: 100%; max-width: 360px; }
-        .success-ring { width: 70px; height: 70px; background: #e8f5e9; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 15px; border: 3px solid #2e7d32; }
-        .success-ring svg { width: 40px; height: 40px; fill: none; stroke: #2e7d32; stroke-width: 4; }
-        .modal-card h4 { font-size: 20px; color: #2e7d32; margin-bottom: 8px; }
-        .btn-ok { background-color: #2e7d32; }
-
-        .otp-input-field { width: 85%; padding: 12px; border: 2px solid #1e88e5; border-radius: 12px; font-size: 22px; font-weight: 800; text-align: center; letter-spacing: 6px; outline: none; margin: 15px 0; background: #f9f9f9; }
-        .btn-otp-confirm { background-color: #1565c0; margin-bottom: 8px; }
-        .btn-otp-cancel { background-color: #e0e0e0; color: #424242; }
+        * { font-family: 'Inter', sans-serif; }
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: #1f2937; color: white; padding: 12px 24px;
+            border-radius: 50px; font-size: 13px; opacity: 0;
+            transition: opacity 0.3s; pointer-events: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+        }
+        .toast.show { opacity: 1; }
+        .filter-chip { cursor: pointer; transition: all 0.2s; padding: 6px 14px; font-size: 11px; border-radius: 30px; border: 1px solid #e5e7eb; white-space: nowrap; }
+        .filter-chip.active { background: #10b981; color: white; border-color: #10b981; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .invoice-modal { max-height: 80vh; overflow-y: auto; }
+        @media print {
+            .no-print { display: none; }
+            .invoice-print-area { display: block; margin: 0; padding: 0; }
+            body * { visibility: hidden; }
+            .invoice-print-area, .invoice-print-area * { visibility: visible; }
+            .invoice-print-area { position: absolute; top: 0; left: 0; width: 100%; }
+        }
+        .login-bg { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); }
+        .camera-preview { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: black; z-index: 1000;
+            display: flex; flex-direction: column;
+        }
     </style>
 </head>
-<body>
+<body class="bg-gray-50 text-gray-800 antialiased">
 
-<div id="otpModal" class="modal-overlay">
-    <div class="modal-card">
-        <div class="success-ring" style="background:#e3f2fd; border-color:#1565c0;">
-            <svg viewBox="0 0 24 24" style="stroke:#1565c0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+<div id="toast" class="toast"><i class="fas fa-check-circle text-green-400 mr-2"></i> <span id="toastMsg">Status Updated!</span></div>
+
+<div id="app" class="max-w-md mx-auto min-h-screen flex flex-col bg-white shadow-xl relative">
+
+    <!-- ==================== LOGIN SCREEN ==================== -->
+    <div v-if="!loggedInRider" class="fixed inset-0 login-bg flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 text-3xl mx-auto shadow-sm">
+                    <i class="fas fa-shipping-fast"></i>
+                </div>
+                <h2 class="text-xl font-black text-slate-800 mt-3">Pinkkart Rider Login</h2>
+                <p class="text-xs text-slate-400 font-medium mt-1">Apna registered mobile aur password enter karein</p>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div v-if="loginError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl px-3 py-2.5 text-[11px] font-semibold flex items-center gap-2">
+                    <i class="fas fa-exclamation-circle"></i> {{ loginError }}
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1.5 uppercase text-[10px] tracking-wider">Email Address</label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="email" v-model="loginForm.email" @keyup.enter="handleRiderLogin" placeholder="Registered email address" class="w-full pl-9 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1.5 uppercase text-[10px] tracking-wider">Password</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input :type="showLoginPassword ? 'text' : 'password'" v-model="loginForm.password" @keyup.enter="handleRiderLogin" placeholder="Your login password" class="w-full pl-9 pr-10 py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500">
+                        <button @click="showLoginPassword = !showLoginPassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <i :class="showLoginPassword ? 'fas fa-eye-slash' : 'fas fa-eye'" class="text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+                <button @click="handleRiderLogin" :disabled="authLoading" class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white p-3.5 rounded-xl font-bold transition flex items-center justify-center gap-2">
+                    <i v-if="authLoading" class="fas fa-circle-notch fa-spin"></i>
+                    <i v-else class="fas fa-sign-in-alt"></i>
+                    <span>{{ authLoading ? 'Verifying...' : 'Login to Panel' }}</span>
+                </button>
+            </div>
         </div>
-        <h4 style="color:#1565c0;">Enter SMS Verification OTP</h4>
-        <p style="font-size:13px; color:#616161; margin-top:5px;">Aapke number par bheja gaya secure OTP code yahan enter karein.</p>
-        <input type="number" id="enteredOtp" class="otp-input-field" placeholder="000000" oninput="if(this.value.length > 6) this.value = this.value.slice(0,6);">
-        <button class="btn-action btn-otp-confirm" onclick="confirmOtpAndPay()">Verify & Complete Transfer</button>
-        <button class="btn-action btn-otp-cancel" onclick="closeOtpModal()">Cancel</button>
-    </div>
-</div>
-
-<div id="successModal" class="modal-overlay">
-    <div class="modal-card">
-        <div class="success-ring"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
-        <h4>Transfer Success!</h4>
-        <p id="successMessage" style="font-size:14px; color:#555; margin-bottom:20px;"></p>
-        <button class="btn-action btn-ok" onclick="closeModal()">Return / Ok</button>
-    </div>
-</div>
-
-<div class="transfer-card">
-    <div class="app-title">
-        <h2>Growthxpress Pay</h2>
-        <p>Verified Secure Money Transfer</p>
     </div>
 
-    <div id="senderProfileCard" class="sender-profile-box" style="display: none;">
-        <div>User: <span id="lblSenderName" class="name">---</span></div>
-        <div>Balance: <span id="lblSenderBalance" class="bal">₹0.00</span></div>
-    </div>
+    <!-- ==================== MAIN PANEL ==================== -->
+    <template v-if="loggedInRider">
 
-    <div class="input-block">
-        <label>Your Paytm / Mobile Number:</label>
-        <input type="text" id="senderMobile" placeholder="Enter your mobile number" maxlength="10">
-    </div>
+        <!-- Tab Navigation -->
+        <div class="bg-slate-900 text-white p-3 sticky top-0 z-40 shadow flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-shipping-fast text-green-400 text-xl"></i>
+                <div>
+                    <h1 class="text-base font-black tracking-wide">{{ loggedInRider.name }}</h1>
+                    <p class="text-[10px] text-emerald-400 font-bold">📞 {{ loggedInRider.phone }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button @click="activeTab = 'orders'" :class="activeTab == 'orders' ? 'bg-green-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1">
+                    <i class="fas fa-box"></i> Orders
+                </button>
+                <button @click="activeTab = 'earnings'; loadWithdrawRequests()" :class="activeTab == 'earnings' ? 'bg-indigo-600' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1">
+                    <i class="fas fa-wallet"></i> Withdraw
+                </button>
+                <button @click="activeTab = 'payout'; loadPayoutData()" :class="activeTab == 'payout' ? 'bg-yellow-500 text-slate-900' : 'bg-slate-700'" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1">
+                    <i class="fas fa-file-invoice-dollar"></i> Monthly Payout
+                </button>
+                <button @click="handleRiderLogout" class="bg-red-600/30 hover:bg-red-600/50 text-red-300 text-[10px] font-black px-2.5 py-1.5 rounded-lg transition">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
 
-    <div class="input-block">
-        <label>Receiver's Paytm / Mobile Number:</label>
-        <input type="text" id="receiverMobile" placeholder="Enter friend's mobile number" maxlength="10">
-        <button class="btn-action btn-verify" onclick="verifyAccounts()">Verify Destination Account</button>
-        <div id="receiverStatus"></div>
-    </div>
+        <!-- ==================== ORDERS TAB ==================== -->
+        <main v-if="activeTab == 'orders'" class="p-4 flex-1 space-y-4 pb-24">
+            <!-- Stats -->
+            <div class="grid grid-cols-4 gap-2">
+                <div class="bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-3 text-center shadow-sm">
+                    <div class="text-2xl font-black text-yellow-600">{{ orders.filter(o=>o.status=='pending').length }}</div>
+                    <div class="text-[10px] font-bold text-yellow-700">Pending</div>
+                </div>
+                <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-2xl p-3 text-center shadow-sm">
+                    <div class="text-2xl font-black text-purple-600">{{ orders.filter(o=>o.status=='shipped').length }}</div>
+                    <div class="text-[10px] font-bold text-purple-700">On Way</div>
+                </div>
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-3 text-center shadow-sm">
+                    <div class="text-2xl font-black text-green-600">{{ todayDeliveredCount }}</div>
+                    <div class="text-[10px] font-bold text-green-700">Today Done</div>
+                </div>
+                <div class="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-2xl p-3 text-center shadow-sm">
+                    <div class="text-2xl font-black text-red-500">{{ orders.filter(o=>o.status=='cancelled'||o.status=='rejected').length }}</div>
+                    <div class="text-[10px] font-bold text-red-600">Cancelled</div>
+                </div>
+            </div>
 
-    <div class="input-block">
-        <label>Amount to Send (₹):</label>
-        <input type="number" id="transferAmount" placeholder="Enter Amount" min="1">
-    </div>
+            <!-- Search -->
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs"></i>
+                <input type="text" v-model="orderSearch" placeholder="Search by Name, Mobile, Order ID..." class="w-full pl-9 pr-3 py-2.5 border rounded-xl text-xs bg-white shadow-inner outline-none focus:border-emerald-500">
+            </div>
 
-    <div class="input-block">
-        <label>Enter 6-Digit Security PIN:</label>
-        <input type="password" id="userSecurePin" placeholder="••••••" maxlength="6">
-    </div>
+            <!-- Filter Chips -->
+            <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                <button @click="orderStatusFilter = 'all'" :class="{'active': orderStatusFilter == 'all'}" class="filter-chip">All ({{ orders.length }})</button>
+                <button @click="orderStatusFilter = 'pending'" :class="{'active': orderStatusFilter == 'pending'}" class="filter-chip bg-yellow-50">Pending</button>
+                <button @click="orderStatusFilter = 'shipped'" :class="{'active': orderStatusFilter == 'shipped'}" class="filter-chip bg-purple-50">Shipped</button>
+                <button @click="orderStatusFilter = 'delivered'" :class="{'active': orderStatusFilter == 'delivered'}" class="filter-chip bg-green-50">Delivered</button>
+            </div>
 
-    <button class="btn-action btn-send" id="sendBtn" disabled onclick="triggerOtpProcess()">Confirm & Send Now</button>
+            <!-- Orders List -->
+            <div class="space-y-4">
+                <div v-for="order in filteredOrders" :key="order.id" class="border border-gray-100 rounded-2xl shadow-sm bg-white overflow-hidden border-t-4" :class="getBorderClass(order.status)">
+                    <div class="bg-gray-50/80 px-3.5 py-2.5 border-b flex justify-between items-center text-xs">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <p class="font-mono font-black text-gray-800">#{{ getShortId(order.id) }}</p>
+                            </div>
+                            <p class="text-[10px] text-gray-400">{{ formatDate(order.date) }}</p>
+                        </div>
+                        <div class="flex gap-1">
+                            <button @click="printInvoice(order)" class="bg-blue-100 text-blue-700 px-2 py-1 rounded-lg text-[10px] font-bold"><i class="fas fa-print"></i></button>
+                            <span :class="getStatusBadgeClass(order.status)" class="px-2 py-0.5 rounded-full text-[10px] font-bold">{{ getStatusText(order.status) }}</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 space-y-2 text-xs">
+                        <div class="flex items-center justify-between">
+                            <p class="font-bold"><i class="fas fa-user mr-1 text-gray-400"></i>{{ order.customerName }}</p>
+                            <a :href="'tel:' + order.customerPhone" class="bg-green-100 text-green-800 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 text-xs">
+                                <i class="fas fa-phone-alt"></i> Call
+                            </a>
+                        </div>
+                        <div class="bg-slate-50 p-2.5 rounded-xl">
+                            <p class="text-[10px] font-bold text-gray-400">📍 Address:</p>
+                            <p class="font-medium">{{ order.customerAddress }}</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500">Amount:</span>
+                            <span class="font-black text-green-700">₹{{ Number(order.total).toFixed(2) }}</span>
+                        </div>
+
+                        <!-- Dropdown Status Controls -->
+                        <div class="flex gap-2 mt-1">
+                            <div v-if="order.status === 'delivered'" class="flex-1 border-2 border-green-400 rounded-xl px-3 py-2 text-xs font-bold bg-green-50 text-green-700 flex items-center gap-2 cursor-not-allowed select-none">
+                                <i class="fas fa-lock text-green-500"></i>
+                                <span>🏠 Delivered — Saved</span>
+                            </div>
+                            <template v-else>
+                                <select v-model="order.status" @change="mutateOrderStatus(order)" class="flex-1 border rounded-xl px-3 py-2 text-xs font-bold bg-white">
+                                    <option value="pending">⏳ Pending</option>
+                                    <option value="confirmed">✅ Confirm</option>
+                                    <option value="shipped">🚚 Out for Delivery</option>
+                                    <option value="delivered">🏠 Delivered</option>
+                                </select>
+                                <button v-if="order.status === 'delivered' && !order.deliveryPhoto" @click="openCameraForOrder(order)" class="bg-purple-600 text-white px-3 rounded-xl text-[10px] font-bold">
+                                    <i class="fas fa-camera"></i> Photo
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ==================== WITHDRAW / EARNINGS PAGE ==================== -->
+        <main v-if="activeTab == 'earnings'" class="p-4 flex-1 space-y-4 pb-24">
+            <!-- Available Balance Card -->
+            <div class="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
+                <p class="text-[10px] opacity-80 uppercase tracking-wide font-bold">🏦 Available Wallet Balance</p>
+                <p class="text-4xl font-black mt-1">₹{{ totalEarnings.toFixed(2) }}</p>
+                <div class="mt-3 pt-3 border-t border-white/20 flex justify-between text-[11px]">
+                    <span class="opacity-80">Live from Wallet</span>
+                    <span class="opacity-80">Withdrawn Approved: ₹{{ totalWithdrawn.toFixed(2) }}</span>
+                </div>
+                <div v-if="totalPending > 0" class="mt-1.5 text-[10px] text-yellow-200 flex items-center gap-1.5">
+                    <i class="fas fa-clock"></i> Pending for Approval: ₹{{ totalPending.toFixed(2) }}
+                </div>
+            </div>
+
+            <!-- Total Delivered Payment Info -->
+            <div class="bg-white rounded-xl p-4 border shadow-sm flex justify-between items-center">
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold">Delivered Orders Earnings</p>
+                    <p class="text-xl font-black text-emerald-600">₹{{ totalGrossEarnings.toFixed(2) }}</p>
+                    <p class="text-[10px] text-gray-400">{{ deliveredOrders.length }} deliveries × ₹{{ perDeliveryRate }}/Order</p>
+                </div>
+                <button @click="showWithdrawModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow transition">
+                    <i class="fas fa-money-check-alt"></i> Send Withdraw Request
+                </button>
+            </div>
+
+            <!-- Past Requests -->
+            <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+                <div class="px-4 py-3 bg-gray-50 border-b">
+                    <p class="text-xs font-bold text-gray-600 uppercase tracking-wide">Withdrawal Transaction History</p>
+                </div>
+                <div v-if="withdrawRequests.length" class="divide-y">
+                    <div v-for="req in withdrawRequests" :key="req.id" class="px-4 py-2.5 flex justify-between items-center">
+                        <div>
+                            <p class="text-xs font-bold text-gray-800">Amount: ₹{{ req.amount }}</p>
+                            <p class="text-[10px] text-gray-400">{{ formatDate(req.requestedAt) }}</p>
+                            <p class="text-[10px] text-gray-400">UPI: {{ req.upiId }}</p>
+                        </div>
+                        <span :class="{
+                            'bg-yellow-100 text-yellow-700': req.status === 'pending',
+                            'bg-green-100 text-green-700': req.status === 'approved',
+                            'bg-red-100 text-red-700': req.status === 'rejected'
+                        }" class="px-2.5 py-1 rounded-full text-[10px] font-bold capitalize">
+                            {{ req.status }}
+                        </span>
+                    </div>
+                </div>
+                <div v-else class="px-4 py-5 text-center text-[11px] text-gray-400">No withdrawal requests found</div>
+            </div>
+        </main>
+
+        <!-- ==================== ADMIN PAYOUT PAGE (MONTHLY SETUP) ==================== -->
+        <main v-if="activeTab == 'payout'" class="p-4 flex-1 space-y-4 pb-24">
+            <!-- Month Selector -->
+            <div class="bg-white rounded-2xl border shadow-sm p-4">
+                <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-2"><i class="fas fa-calendar-alt text-yellow-500 mr-1"></i> Select Payout Month</p>
+                <select v-model="selectedPayoutMonth" @change="loadPayoutData" class="w-full border border-gray-200 rounded-xl p-2.5 text-sm font-bold text-gray-700 bg-gray-50 outline-none">
+                    <option v-for="m in payoutMonths" :key="m.value" :value="m.value">{{ m.label }}</option>
+                </select>
+            </div>
+
+            <div v-if="payoutLoading" class="text-center py-10 text-gray-400">
+                <i class="fas fa-circle-notch fa-spin text-3xl text-yellow-500"></i>
+                <p class="text-xs mt-2 font-semibold">Loading Admin Setup Payout...</p>
+            </div>
+
+            <template v-else>
+                <!-- Month Summary Card -->
+                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 bg-slate-800 text-white flex justify-between items-center">
+                        <div>
+                            <p class="text-[10px] opacity-60 uppercase font-bold">Admin Monthly Payout Setup</p>
+                            <p class="font-black text-base mt-0.5">{{ selectedPayoutMonthLabel }}</p>
+                        </div>
+                        <span :class="payoutData.status === 'paid' ? 'bg-green-400 text-green-900' : 'bg-yellow-400 text-yellow-900'" class="text-[10px] font-black px-3 py-1.5 rounded-full uppercase">
+                            {{ payoutData.status === 'paid' ? '✅ Paid' : '⏳ Pending' }}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-px bg-gray-100">
+                        <div class="bg-white p-4 text-center">
+                            <p class="text-2xl font-black text-blue-600">{{ payoutData.workingDays || 0 }}</p>
+                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">📅 Total Working Days</p>
+                        </div>
+                        <div class="bg-white p-4 text-center">
+                            <p class="text-2xl font-black text-green-600">{{ payoutData.paidDays || 0 }}</p>
+                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">✅ Present Days</p>
+                        </div>
+                        <div class="bg-white p-4 text-center">
+                            <p class="text-2xl font-black text-red-500">{{ payoutData.absentDays || 0 }}</p>
+                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">❌ Absent Days</p>
+                        </div>
+                        <div class="bg-white p-4 text-center">
+                            <p class="text-2xl font-black text-purple-600">{{ payoutData.overtimeHours || 0 }} hrs</p>
+                            <p class="text-[10px] font-bold text-gray-500 mt-0.5">⏱️ Overtime Hours</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Salary breakdown structure -->
+                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden text-sm">
+                    <div class="px-4 py-3 bg-emerald-600 text-white font-bold">💰 Salary & Allowances Breakdown</div>
+                    <div class="divide-y">
+                        <div class="px-4 py-3 flex justify-between">
+                            <span>Base Monthly Salary</span>
+                            <span class="font-black">₹{{ (payoutData.baseSalary || 0).toLocaleString('en-IN') }}</span>
+                        </div>
+                        <div class="px-4 py-3 flex justify-between text-green-600">
+                            <span>Overtime Pay (₹{{payoutData.overtimeRate || 0}}/hr)</span>
+                            <span class="font-black">+₹{{ overtimePay.toLocaleString('en-IN') }}</span>
+                        </div>
+                        <div class="px-4 py-3 flex justify-between text-green-600">
+                            <span>Performance Incentive</span>
+                            <span class="font-black">+₹{{ (payoutData.incentives || 0).toLocaleString('en-IN') }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden text-sm">
+                    <div class="px-4 py-3 bg-red-500 text-white font-bold">✂️ Attendance & Advance Cuts</div>
+                    <div class="divide-y">
+                        <div class="px-4 py-3 flex justify-between text-red-500">
+                            <span>Absent Deductions</span>
+                            <span class="font-black">-₹{{ absentDeduction.toLocaleString('en-IN') }}</span>
+                        </div>
+                        <div class="px-4 py-3 flex justify-between text-red-500">
+                            <span>Penalty / Fine Applied</span>
+                            <span class="font-black">-₹{{ (payoutData.deductions || 0).toLocaleString('en-IN') }}</span>
+                        </div>
+                        <div class="px-4 py-3 flex justify-between text-red-500">
+                            <span>Advance Salary Cut</span>
+                            <span class="font-black">-₹{{ (payoutData.advances || 0).toLocaleString('en-IN') }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- In Hand Final Salary Statement -->
+                <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-xl flex justify-between items-center">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-gray-400">Net In-Hand Salary Setup</p>
+                        <p class="text-3xl font-black text-yellow-400 mt-1">₹{{ inHandSalary.toLocaleString('en-IN') }}</p>
+                    </div>
+                    <div class="text-right text-[11px] text-gray-300 space-y-0.5">
+                        <p>Gross: ₹{{ grossPay }}</p>
+                        <p>Total Cuts: ₹{{ totalDeductions }}</p>
+                    </div>
+                </div>
+                
+                <div v-if="payoutData.adminNote" class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs">
+                    <strong>Admin Note:</strong> {{ payoutData.adminNote }}
+                </div>
+            </template>
+        </main>
+
+        <!-- WITHDRAW MODAL -->
+        <div v-if="showWithdrawModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="showWithdrawModal = false">
+            <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+                <div class="bg-indigo-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
+                    <h3 class="font-bold text-sm">Withdraw Earnings Wallet</h3>
+                    <button @click="showWithdrawModal = false" class="text-white"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="p-4 space-y-3 text-xs">
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex justify-between items-center">
+                        <span class="font-bold text-gray-600">Available Wallet Balance</span>
+                        <span class="font-black text-indigo-700 text-lg">₹{{ totalEarnings.toFixed(2) }}</span>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-gray-700 mb-1">Amount to Withdraw (₹)</label>
+                        <input type="number" v-model="withdrawAmount" placeholder="Enter amount" class="w-full p-2.5 border rounded-xl outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-gray-700 mb-1">Enter UPI ID</label>
+                        <input type="text" v-model="withdrawUPI" placeholder="username@upi" class="w-full p-2.5 border rounded-xl outline-none">
+                    </div>
+                    <div class="flex gap-2 pt-2">
+                        <button @click="showWithdrawModal = false" class="flex-1 bg-gray-100 py-2 rounded-xl font-bold">Cancel</button>
+                        <button @click="submitWithdrawRequest" :disabled="withdrawLoading" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl font-bold">
+                            {{ withdrawLoading ? 'Processing...' : 'Submit Request' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CAMERA PROOF MODAL -->
+        <div v-if="cameraActive" class="camera-preview">
+            <div class="bg-black text-white p-3 flex justify-between items-center">
+                <h3 class="text-sm font-bold">📸 Capture Delivery Proof Photo</h3>
+                <button @click="closeCamera" class="text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex-1 bg-black flex items-center justify-center">
+                <video ref="video" class="w-full h-auto max-h-[70vh] object-cover" autoplay playsinline muted></video>
+                <canvas ref="canvas" style="display: none;"></canvas>
+            </div>
+            <div class="p-4 bg-black flex gap-3">
+                <button @click="capturePhoto" :disabled="photoUploading" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">
+                    {{ photoUploading ? 'Uploading Image...' : 'Capture Photo' }}
+                </button>
+            </div>
+        </div>
+
+    </template>
 </div>
 
 <script>
-    // Firebase Config Init
-    const firebaseConfig = { databaseURL: "https://har-gar-kishan-default-rtdb.firebaseio.com" };
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+const firebaseConfig = {
+    apiKey: "AIzaSyDbVF9_RqXDXdIASOy2WgbwSmwuiowu2Bg",
+    authDomain: "growthxpressx.firebaseapp.com",
+    databaseURL: "https://growthxpressx-default-rtdb.firebaseio.com",
+    projectId: "growthxpressx",
+    storageBucket: "growthxpressx.appspot.com",
+    messagingSenderId: "967008233535",
+    appId: "1:967008233535:android:ac720ab7c8f7b10bf4308a"
+};
 
-    // Fast2SMS API Authorization Token Key
-    const FAST2SMS_API_KEY = "PA3zj0wyaoTN1fvOhHXFIQecK5GDbiJZgnmCLESsu6BVRkU8d4f30RkEni6TMLuwG5erXCHB8YFzV9jD"; 
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+const auth = firebase.auth();
 
-    let senderUID = null, senderName = "", senderEmail = "", senderCurrentBalance = 0, senderDatabasePin = "";
-    let receiverUID = null, receiverName = "", receiverEmail = "", receiverCurrentBalance = 0;
-    let systemGeneratedOtp = null; 
-
-    // Account verification handler
-    function verifyAccounts() {
-        const sMobile = document.getElementById("senderMobile").value.trim();
-        const rMobile = document.getElementById("receiverMobile").value.trim();
-        const statusDiv = document.getElementById("receiverStatus");
-        const profileCard = document.getElementById("senderProfileCard");
-
-        if (sMobile === "" || rMobile === "") { alert("Dono number fill karein!"); return; }
-        if (sMobile === rMobile) { alert("Self-transfer block error!"); return; }
-
-        statusDiv.style.background = "#fff3e0"; statusDiv.style.color = "#000"; statusDiv.innerText = "Verifying Accounts...";
-        profileCard.style.display = "none"; 
-
-        database.ref("All_Users").once('value').then((snapshot) => {
-            let sFound = false, rFound = false;
-
-            snapshot.forEach((childSnapshot) => {
-                const userData = childSnapshot.val();
-                
-                if (userData && userData["paytm number"]) {
-                    const dbMobile = userData["paytm number"].toString().trim();
-                    
-                    if (dbMobile === sMobile) {
-                        senderUID = childSnapshot.key; 
-                        senderName = userData.name;
-                        senderEmail = userData.email || "noemail@gmail.com";
-                        senderCurrentBalance = parseFloat(userData.balance || 0);
-                        senderDatabasePin = userData.transferPin || ""; 
-                        sFound = true;
-                    }
-                    if (dbMobile === rMobile) {
-                        receiverUID = childSnapshot.key; 
-                        receiverName = userData.name;
-                        receiverEmail = userData.email || "noemail@gmail.com";
-                        receiverCurrentBalance = parseFloat(userData.balance || 0);
-                        rFound = true;
-                    }
-                }
-            });
-
-            if (!sFound) { 
-                statusDiv.style.background = "#ffebee"; statusDiv.style.color = "#d32f2f"; statusDiv.innerText = "❌ Sender Not Registered"; 
-            } 
-            else if (!rFound) { 
-                statusDiv.style.background = "#ffebee"; statusDiv.style.color = "#d32f2f"; statusDiv.innerText = "❌ Receiver Not Found"; 
-            } 
-            else {
-                document.getElementById("lblSenderName").innerText = senderName;
-                document.getElementById("lblSenderBalance").innerText = "₹" + senderCurrentBalance.toFixed(2);
-                profileCard.style.display = "flex"; 
-
-                statusDiv.style.background = "#e8f5e9"; statusDiv.style.color = "#2e7d32";
-                statusDiv.innerText = "✔ Ready to Pay: " + receiverName;
-                document.getElementById("sendBtn").disabled = false;
+new Vue({
+    el: '#app',
+    data: {
+        loggedInRider: null,
+        authLoading: false,
+        loginForm: { email: '', password: '' },
+        loginError: '',
+        showLoginPassword: false,
+        activeTab: 'orders',
+        orders: [],
+        orderSearch: '',
+        orderStatusFilter: 'all',
+        perDeliveryRate: 40,
+        riderBalance: 0,
+        cameraActive: false,
+        currentOrderForPhoto: null,
+        stream: null,
+        photoUploading: false,
+        showWithdrawModal: false,
+        withdrawAmount: '',
+        withdrawUPI: '',
+        withdrawLoading: false,
+        withdrawRequests: [],
+        selectedPayoutMonth: '',
+        payoutData: {},
+        payoutLoading: false
+    },
+    computed: {
+        filteredOrders() {
+            let filtered = this.orders;
+            if (this.orderStatusFilter !== 'all') {
+                filtered = filtered.filter(o => o.status === this.orderStatusFilter);
             }
-        }).catch((err) => {
-            alert("Database Error: " + err.message);
-        });
-    }
-
-    function saveGlobalLog(typeText, amount, dateStr, userEmail) {
-        const ref = database.ref("history").push();
-        ref.set({ coin: String(amount), date: dateStr, email: userEmail, status: "Success", transKey: ref.key, type: typeText });
-    }
-
-    // Live Web Optimized HTTP Request Trigger
-    function triggerOtpProcess() {
-        const sMobile = document.getElementById("senderMobile").value.trim();
-        const amt = parseFloat(document.getElementById("transferAmount").value);
-        const enteredPin = document.getElementById("userSecurePin").value.trim();
-
-        if (isNaN(amt) || amt <= 0) { alert("Valid amount enter karein!"); return; }
-        if (amt > senderCurrentBalance) { alert("Insufficient wallet balance!"); return; }
+            if (this.orderSearch) {
+                const q = this.orderSearch.toLowerCase();
+                filtered = filtered.filter(o => 
+                    this.getShortId(o.id).toLowerCase().includes(q) ||
+                    (o.customerName && o.customerName.toLowerCase().includes(q))
+                );
+            }
+            return filtered;
+        },
+        deliveredOrders() {
+            return this.orders.filter(o => o.status === 'delivered');
+        },
+        totalWithdrawn() {
+            return this.withdrawRequests.filter(r => r.status === 'approved').reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+        },
+        totalPending() {
+            return this.withdrawRequests.filter(r => r.status === 'pending').reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+        },
+        totalGrossEarnings() {
+            return this.deliveredOrders.length * this.perDeliveryRate;
+        },
+        totalEarnings() {
+            return Math.max(0, this.riderBalance);
+        },
+        todayDeliveredCount() {
+            const today = new Date().toDateString();
+            return this.deliveredOrders.filter(o => o.deliveredAt && new Date(o.deliveredAt).toDateString() === today).length;
+        },
+        payoutMonths() {
+            const months = [];
+            const now = new Date();
+            for (let i = 0; i < 12; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                const label = d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+                months.push({ value: val, label });
+            }
+            return months;
+        },
+        selectedPayoutMonthLabel() {
+            const m = this.payoutMonths.find(m => m.value === this.selectedPayoutMonth);
+            return m ? m.label : '';
+        },
+        overtimePay() { return (this.payoutData.overtimeHours || 0) * (this.payoutData.overtimeRate || 0); },
+        grossPay() { return (this.payoutData.baseSalary || 0) + this.overtimePay + (this.payoutData.incentives || 0); },
+        perDayRate() {
+            if (!this.payoutData.baseSalary || !this.payoutData.workingDays) return 0;
+            return Math.round(this.payoutData.baseSalary / this.payoutData.workingDays);
+        },
+        absentDeduction() { return this.perDayRate * (this.payoutData.absentDays || 0); },
+        totalDeductions() { return this.absentDeduction + (this.payoutData.deductions || 0) + (this.payoutData.advances || 0); },
+        inHandSalary() { return Math.max(0, this.grossPay - this.totalDeductions); }
+    },
+    methods: {
+        getShortId(fullId) { return fullId ? fullId.slice(-8).toUpperCase() : ''; },
+        formatDate(date) { return date ? new Date(date).toLocaleString('hi-IN') : ''; },
+        showToast(msg) { const t = document.getElementById('toast'); document.getElementById('toastMsg').innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); },
+        getStatusText(s) { const m = { pending: '⏳ Pending', confirmed: '✅ Confirmed', shipped: '🚚 Shipped', delivered: '🏠 Delivered' }; return m[s] || s; },
+        getStatusBadgeClass(s) { const c = { pending: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-blue-100 text-blue-700', shipped: 'bg-purple-100 text-purple-700', delivered: 'bg-green-100 text-green-700' }; return c[s] || ''; },
+        getBorderClass(s) { const c = { pending: 'border-t-yellow-400', confirmed: 'border-t-blue-400', shipped: 'border-t-purple-400', delivered: 'border-t-green-400' }; return c[s] || ''; },
         
-        if (senderDatabasePin === "") {
-            alert("Security Error: Is account ka PIN active nahi hai. Admin se setup karwayein!");
-            return;
+        initRiderPanel() {
+            const now = new Date();
+            this.selectedPayoutMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+            this.loadOrders();
+            this.loadPerDeliveryRate();
+            this.loadWithdrawRequests();
+            this.loadRiderBalance();
+            database.ref('orders').on('value', () => this.loadOrders());
+        },
+        async handleRiderLogin() {
+            if (!this.loginForm.email || !this.loginForm.password) { this.loginError = 'Email aur password dalein'; return; }
+            this.authLoading = true;
+            try {
+                await auth.signInWithEmailAndPassword(this.loginForm.email.trim(), this.loginForm.password);
+                const snap = await database.ref('riders').once('value');
+                let matched = null;
+                snap.forEach(c => {
+                    const v = c.val();
+                    if (v.email && v.email.toLowerCase().trim() === this.loginForm.email.toLowerCase().trim()) {
+                        matched = { id: c.key, name: v.name, phone: v.phone || '', email: v.email };
+                    }
+                });
+                this.authLoading = false;
+                if (matched) {
+                    this.loggedInRider = matched;
+                    localStorage.setItem('sw_rider_session', JSON.stringify(matched));
+                    this.initRiderPanel();
+                } else { this.loginError = 'Rider details match nahi hui!'; }
+            } catch(e) { this.authLoading = false; this.loginError = e.message; }
+        },
+        async loadOrders() {
+            if (!this.loggedInRider) return;
+            const snap = await database.ref('orders').once('value');
+            const data = snap.val();
+            const allOrders = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
+            this.orders = allOrders.filter(o => o.assignedRider === this.loggedInRider.id || o.assignedRiderPhone === this.loggedInRider.phone).reverse();
+        },
+        loadPerDeliveryRate() {
+            database.ref('admin_settings/per_delivery_rate').on('value', snap => { if (snap.exists()) this.perDeliveryRate = snap.val(); });
+        },
+        loadWithdrawRequests() {
+            if (!this.loggedInRider) return;
+            database.ref('withdrawal_requests').orderByChild('riderId').equalTo(this.loggedInRider.id).on('value', snap => {
+                const d = snap.val();
+                this.withdrawRequests = d ? Object.keys(d).map(k => ({ id: k, ...d[k] })).reverse() : [];
+            });
+        },
+        loadRiderBalance() {
+            if (!this.loggedInRider) return;
+            database.ref(`riders/${this.loggedInRider.id}/balance`).on('value', snap => { this.riderBalance = snap.exists() ? Number(snap.val()) : 0; });
+        },
+        async submitWithdrawRequest() {
+            if (!this.withdrawAmount || parseFloat(this.withdrawAmount) <= 0) { this.showToast('Amount valid dalein'); return; }
+            if (parseFloat(this.withdrawAmount) > this.riderBalance) { this.showToast('Balance kam hai'); return; }
+            this.withdrawLoading = true;
+            const amt = parseFloat(this.withdrawAmount);
+            try {
+                await database.ref(`riders/${this.loggedInRider.id}/balance`).transaction(cur => Math.max(0, (Number(cur) || 0) - amt));
+                await database.ref('withdrawal_requests').push({
+                    riderId: this.loggedInRider.id, riderName: this.loggedInRider.name, riderPhone: this.loggedInRider.phone,
+                    amount: amt, upiId: this.withdrawUPI.trim(), status: 'pending', requestedAt: new Date().toISOString()
+                });
+                this.showToast('✅ Request sent successfully!');
+                this.showWithdrawModal = false;
+                this.withdrawAmount = '';
+            } catch(e) { this.showToast(e.message); }
+            finally { this.withdrawLoading = false; }
+        },
+        async mutateOrderStatus(order) {
+            if (order.status === 'delivered' && !order.deliveryPhoto) {
+                this.showToast('📸 Photo mandatory hai execution ke liye!');
+                return;
+            }
+            const now = new Date().toISOString();
+            const payload = { status: order.status, riderTimestamp: now };
+            if (order.status === 'delivered') payload.deliveredAt = now;
+            await database.ref(`orders/${order.id}`).update(payload);
+            if (order.status === 'delivered' && !order.earningCredited) {
+                await database.ref(`riders/${this.loggedInRider.id}/balance`).transaction(cur => (Number(cur) || 0) + this.perDeliveryRate);
+                await database.ref(`orders/${order.id}`).update({ earningCredited: true });
+            }
+            this.showToast('Status dynamically updated!');
+        },
+        async openCameraForOrder(order) {
+            this.currentOrderForPhoto = order; this.cameraActive = true;
+            this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+            this.$refs.video.srcObject = this.stream;
+        },
+        async capturePhoto() {
+            this.photoUploading = true;
+            const canvas = this.$refs.canvas;
+            canvas.width = this.$refs.video.videoWidth; canvas.height = this.$refs.video.videoHeight;
+            canvas.getContext('2d').drawImage(this.$refs.video, 0, 0);
+            const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+            
+            const fd = new FormData(); fd.append('key', '9b6ea4121e0281d6911d13eaf8d59c86'); fd.append('image', base64);
+            const res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
+            const result = await res.json();
+            
+            if (result.success) {
+                const now = new Date().toISOString();
+                await database.ref(`orders/${this.currentOrderForPhoto.id}`).update({
+                    deliveryPhoto: result.data.url, status: 'delivered', deliveredAt: now
+                });
+                if (!this.currentOrderForPhoto.earningCredited) {
+                    await database.ref(`riders/${this.loggedInRider.id}/balance`).transaction(cur => (Number(cur) || 0) + this.perDeliveryRate);
+                    await database.ref(`orders/${this.currentOrderForPhoto.id}`).update({ earningCredited: true });
+                }
+                this.showToast('✅ Photo saved & Order Delivered!');
+                this.closeCamera();
+            }
+            this.photoUploading = false;
+        },
+        closeCamera() { if (this.stream) this.stream.getTracks().forEach(t => t.stop()); this.cameraActive = false; },
+        async loadPayoutData() {
+            if (!this.loggedInRider || !this.selectedPayoutMonth) return;
+            this.payoutLoading = true;
+            const snap = await database.ref(`riders/${this.loggedInRider.id}/payouts/${this.selectedPayoutMonth}`).once('value');
+            this.payoutData = snap.exists() ? snap.val() : {};
+            this.payoutLoading = false;
+        },
+        handleRiderLogout() {
+            auth.signOut().then(() => {
+                localStorage.removeItem('sw_rider_session');
+                location.reload();
+            });
         }
-        if (enteredPin !== senderDatabasePin.toString().trim()) {
-            alert("❌ Security PIN Invalid! Transaction blocked.");
-            return;
-        }
-
-        // Generate 6 Digit OTP Token Code
-        systemGeneratedOtp = Math.floor(100000 + Math.random() * 900000);
-
-        document.getElementById("sendBtn").disabled = true;
-        document.getElementById("sendBtn").innerText = "Sending Real SMS OTP...";
-
-        const smsMessage = `Growthxpress Wallet Security Code: ${systemGeneratedOtp}. Safe wallet money transfer validation code.`;
-
-        // GitHub Pages Web API Hit Endpoint
-        const targetUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${FAST2SMS_API_KEY}&route=q&message=${encodeURIComponent(smsMessage)}&flash=0&numbers=${sMobile}`;
-
-        // Standard direct request optimization for dynamic servers
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", targetUrl, true);
-        xhr.onreadystatechange = function () {
-            // Jab code execute ho, direct modal popup trigger ho bina delay ke
-            document.getElementById("sendBtn").disabled = false;
-            document.getElementById("sendBtn").innerText = "Confirm & Send Now";
-            document.getElementById("otpModal").style.display = "flex";
-        };
-        xhr.send();
+    },
+    mounted() {
+        const saved = localStorage.getItem('sw_rider_session');
+        if (saved) { this.loggedInRider = JSON.parse(saved); this.initRiderPanel(); }
     }
-
-    function confirmOtpAndPay() {
-        const userOtpInput = document.getElementById("enteredOtp").value.trim();
-        if (userOtpInput === String(systemGeneratedOtp)) {
-            document.getElementById("otpModal").style.display = "none";
-            executeTransfer(); //
-        } else {
-            alert("❌ Galat Verification OTP daala hai! Sahi code enter karein.");
-        }
-    }
-
-    function executeTransfer() {
-        const amt = parseFloat(document.getElementById("transferAmount").value); //
-
-        const now = new Date(); const pad = (num) => String(num).padStart(2, '0'); //
-        const formattedDate = `${pad(now.getDate())}-${pad(now.getMonth()+1)}-${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`; //
-        
-        let sBal = senderCurrentBalance - amt; let rBal = receiverCurrentBalance + amt; //
-
-        database.ref("All_Users/" + senderUID).child("balance").set(String(sBal)); //
-        database.ref("All_Users/" + senderUID).child("history").child("TXX_"+Date.now()).set({ type: "Transfer to " + receiverName, amount: amt, timestamp: formattedDate, status: "Sent" }); //
-        
-        database.ref("All_Users/" + receiverUID).child("balance").set(String(rBal)); //
-        database.ref("All_Users/" + receiverUID).child("history").child("TXX_"+(Date.now()+1)).set({ type: "Received from " + senderName, amount: amt, timestamp: formattedDate, status: "Success" }); //
-
-        saveGlobalLog("Transfer to " + receiverName, amt, formattedDate, senderEmail); //
-        saveGlobalLog("Received from " + senderName, amt, formattedDate, receiverEmail); //
-
-        document.getElementById("successMessage").innerText = `Successfully transferred ₹${amt} to ${receiverName}!`; //
-        document.getElementById("successModal").style.display = "flex"; //
-    }
-
-    function closeOtpModal() {
-        document.getElementById("otpModal").style.display = "none";
-        document.getElementById("enteredOtp").value = "";
-        systemGeneratedOtp = null;
-    }
-
-    function closeModal() {
-        document.getElementById("successModal").style.display = "none"; //
-        document.getElementById("senderProfileCard").style.display = "none";
-        document.getElementById("senderMobile").value = ""; //
-        document.getElementById("transferAmount").value = ""; //
-        document.getElementById("userSecurePin").value = ""; //
-        document.getElementById("receiverMobile").value = ""; //
-        document.getElementById("receiverStatus").innerText = ""; //
-        document.getElementById("sendBtn").disabled = true; //
-        closeOtpModal();
-    }
+});
 </script>
 </body>
 </html>
