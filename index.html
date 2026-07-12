@@ -760,27 +760,6 @@
         <!-- ==================== EARNINGS SUMMARY TAB ==================== -->
         <main v-if="activeTab == 'summary'" class="p-4 flex-1 space-y-4 pb-24">
 
-            <!-- Header -->
-            <div class="bg-gradient-to-br from-purple-700 to-indigo-700 rounded-2xl p-5 text-white shadow-xl">
-                <p class="text-[10px] opacity-70 uppercase font-bold tracking-widest">Complete Earnings Overview</p>
-                <p class="text-3xl font-black mt-1">₹{{ (inHandSalary + totalGrossEarnings).toLocaleString('en-IN') }}</p>
-                <p class="text-[11px] opacity-70 mt-1">Salary In-Hand + Delivery Earnings (All Time)</p>
-                <div class="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 gap-3">
-                    <div class="bg-white/10 rounded-xl p-3 text-center">
-                        <p class="text-[9px] opacity-50 uppercase font-bold">💼 {{ selectedPayoutMonthLabel }} Salary</p>
-                        <p class="text-xl font-black text-yellow-300 mt-1">₹{{ inHandSalary.toLocaleString('en-IN') }}</p>
-                        <span :class="payoutData.status === 'paid' ? 'bg-green-400 text-green-900' : 'bg-yellow-400 text-yellow-900'" class="text-[9px] font-black px-2 py-0.5 rounded-full mt-1.5 inline-block">
-                            {{ payoutData.status === 'paid' ? '✅ Paid' : '⏳ Pending' }}
-                        </span>
-                    </div>
-                    <div class="bg-white/10 rounded-xl p-3 text-center">
-                        <p class="text-[9px] opacity-50 uppercase font-bold">🚴 Delivery Earnings</p>
-                        <p class="text-xl font-black text-emerald-300 mt-1">₹{{ totalGrossEarnings.toFixed(0) }}</p>
-                        <p class="text-[9px] opacity-50 mt-1.5">{{ deliveredOrders.length }} deliveries total</p>
-                    </div>
-                </div>
-            </div>
-
             <!-- Month Selector for Salary -->
             <div class="bg-white rounded-2xl border shadow-sm p-4">
                 <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-2"><i class="fas fa-calendar-alt mr-1 text-purple-500"></i>Salary Month</p>
